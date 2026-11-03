@@ -1,16 +1,20 @@
-// Surpresa: a árvore velha com o entalhe aparece nos jardins de uma conta só.
+// Surpresa: a árvore velha com o entalhe "E + F" aparece nos jardins de duas contas, a dele e
+// a dela, pelo id do usuário (o id nunca muda; o nome de usuário pode mudar).
 //
-// Quem decide é o dono do jardim (o nome de usuário dele), não o navegador:
-// - ela vê a árvore nos jardins dela, em qualquer aparelho;
-// - quem visita um jardim dela também vê (é o jardim dela);
+// Quem decide é o dono do jardim, não quem está olhando nem o navegador:
+// - nos jardins dele e nos dela, a árvore aparece pra quem olhar (os dois, ou um amigo visitando);
 // - nos jardins de qualquer outra pessoa, nada muda.
 // Nada disso mexe em sessão, crescimento ou banco.
 //
-// Antes era um link (?ref=...) que marcava o navegador; isso vazava pra quem usasse o
-// mesmo navegador com outra conta. O link antigo ainda funciona como link comum: o
-// parâmetro some da barra e a marquinha velha é apagada.
+// Antes era um link (?ref=...) que marcava o navegador, e depois o nome de usuário dela. O link
+// antigo ainda funciona como link comum: o parâmetro some da barra e a marquinha velha é apagada.
 
-const HER = 'nandinhaaamordoedu'
+/** ids (auth.users / profiles) das duas contas */
+const OURS = new Set<string>([
+  'e186f8e3-25da-4ad2-8e63-69cb984807b9', // Edu
+  '9771cbb7-3c6a-471e-939c-404857af3244', // Nanda
+])
+
 const OLD_PARAM = 'ref'
 const OLD_KEY = 'sprout:ref'
 
@@ -28,7 +32,7 @@ export function captureSurpriseLink() {
   }
 }
 
-/** Esse jardim é dela? (pelo nome de usuário de quem é dono do jardim) */
-export function isHers(username: string | null | undefined): boolean {
-  return username?.toLowerCase() === HER
+/** Esse jardim é de um de vocês dois? (pelo id de quem é dono do jardim) */
+export function isOurs(ownerId: string | null | undefined): boolean {
+  return !!ownerId && OURS.has(ownerId)
 }

@@ -518,7 +518,7 @@ O que mudou em relação ao texto acima, e por quê. As migrations em `supabase/
 
 **Surpresa**
 
-- `src/features/surprise/surprise.ts`: a árvore velha aparece nos jardins de uma conta específica (pelo nome de usuário do dono do jardim): ela vê nos jardins dela em qualquer aparelho, e quem visita um jardim dela também vê. Nada no banco e nada que mexa em regra.
+- `src/features/surprise/surprise.ts`: a árvore velha (com neve em cima no bioma neve) aparece nos jardins de duas contas, pelo id do dono do jardim (o id não muda, o nome de usuário pode mudar): nos jardins de qualquer uma das duas, pra quem estiver olhando. Nada no banco e nada que mexa em regra.
 - Antes era um link `?ref=` que marcava o navegador; isso vazava pra outra conta no mesmo navegador. O link antigo agora só é limpo da barra.
 
 **Página principal em blocos e mais interações (2026-11-03)**

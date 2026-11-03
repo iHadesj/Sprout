@@ -6,8 +6,7 @@ import { ErrorBoundary } from '../../components/ErrorBoundary'
 import type { Garden, GardenFlower, Plant } from '../../lib/api'
 import { useFocusStore } from '../../stores/focusStore'
 import type { GiftShow } from '../../three/GiftEffects'
-import { useProfile } from '../account/queries'
-import { isHers } from '../surprise/surprise'
+import { isOurs } from '../surprise/surprise'
 import type { HonestySeal } from '../stats/insights'
 import { biomeOf } from './gardenOptions'
 import { IslandIcon } from './IslandIcon'
@@ -30,14 +29,11 @@ interface GardenStageProps {
   flowers?: GardenFlower[]
   /** corações saindo ao vivo (visita) */
   liveHearts?: number
-  /** nome de usuário do dono (visita); sem isso, o jardim é seu */
-  owner?: string | null
 }
 
-export function GardenStage({ garden, plants, neglected, seal, compact = false, gifts = null, visiting = false, flowers, liveHearts, owner }: GardenStageProps) {
-  const profile = useProfile()
-  // a árvore velha da surpresa: só nos jardins da conta dela (dela vendo, ou alguém visitando)
-  const oldTree = isHers(visiting ? owner : profile.data?.username)
+export function GardenStage({ garden, plants, neglected, seal, compact = false, gifts = null, flowers, liveHearts }: GardenStageProps) {
+  // a árvore velha da surpresa: só nos jardins das duas contas (pelo id do dono do jardim)
+  const oldTree = isOurs(garden.user_id)
   const focusMode = useFocusStore((s) => s.timer.phase === 'focus' || s.timer.phase === 'review')
   const { growing, grown, dead } = summarizePlants(plants)
   const placeholder = (

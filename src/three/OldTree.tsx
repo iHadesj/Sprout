@@ -52,12 +52,14 @@ interface OldTreeProps {
   /** o mesmo material das árvores (vento igual) */
   material: FacetMaterial
   motion: boolean
+  /** jardim de neve: neve em cima da copa */
+  snowy?: boolean
 }
 
 let nextPop = 0
 
-export function OldTree({ radius, spots, heightAt, material, motion }: OldTreeProps) {
-  const geometry = oldTreeGeometry()
+export function OldTree({ radius, spots, heightAt, material, motion, snowy = false }: OldTreeProps) {
+  const geometry = oldTreeGeometry(snowy)
   const carving = useMemo(() => carvingGeometry(), [])
   const carvingMaterial = useMemo(() => {
     // mesmo vento das árvores: o entalhe balança junto com o tronco

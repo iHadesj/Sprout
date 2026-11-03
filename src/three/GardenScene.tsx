@@ -151,7 +151,7 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
         {bursts.map((burst) => (
           <PetalBurst key={burst.id} burst={burst} onDone={removeBurst} />
         ))}
-        {oldTree && <OldTree radius={radius} spots={spots} heightAt={island.heightAt} material={materials.plant} motion={motion} />}
+        {oldTree && <OldTree radius={radius} spots={spots} heightAt={island.heightAt} material={materials.plant} motion={motion} snowy={biome === 'neve'} />}
         {sealLevel > 0 && (
           <HonestySign level={sealLevel as 1 | 2 | 3} radius={radius} spots={spots} heightAt={island.heightAt} material={materials.island} />
         )}

@@ -577,11 +577,13 @@ function oldTrunkRadius(y: number): number {
   return radius * (1 + 0.6 * flare * flare) * taper
 }
 
-let oldCache: BufferGeometry | null = null
+/** uma geometria pra cada versão: normal e com neve (jardim de neve) */
+const oldCache = new Map<boolean, BufferGeometry>()
 
 /** Árvore grande e velha: tronco grosso e reto embaixo (pro entalhe), galhos grossos, copa alta. */
-export function oldTreeGeometry(): BufferGeometry {
-  if (oldCache) return oldCache
+export function oldTreeGeometry(snowy = false): BufferGeometry {
+  const cached = oldCache.get(snowy)
+  if (cached) return cached
   const random = rng(hashString('árvore velha'))
   const b = new MeshBuilder(random, 0.1)
   const { height, radius, sides } = OLD_TREE
@@ -605,10 +607,13 @@ export function oldTreeGeometry(): BufferGeometry {
   for (const [i, c] of clusters.entries()) {
     canopy(b, c, 0.92, i === 0 ? 74 : 52, shape, OAK, true, rng(hashString(`árvore velha:${i}`)))
   }
+  // no jardim de neve, a copa ganha neve em cima, igual às outras árvores
+  if (snowy) for (const c of clusters) snowCap(b, c.center.clone().add(new Vector3(0, c.radius * 0.5 * 0.92, 0)), c.radius * 0.66)
 
-  oldCache = b.build()
-  oldCache.computeBoundingSphere()
-  return oldCache
+  const geometry = b.build()
+  geometry.computeBoundingSphere()
+  oldCache.set(snowy, geometry)
+  return geometry
 }
 
 /** Raio do tronco da árvore velha na faixa do entalhe (é constante ali). */

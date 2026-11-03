@@ -227,7 +227,6 @@ export function FriendGarden() {
               flowers={flowers.data}
               liveHearts={heartsSent}
               visiting
-              owner={name}
             />
           ) : (
             <p className={layout.status}>
