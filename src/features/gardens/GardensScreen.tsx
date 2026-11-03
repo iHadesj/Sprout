@@ -5,7 +5,7 @@
 // Sem jardins, mostra a página de rosto com as instruções de uso.
 import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
-import { Plus } from 'lucide-react'
+import { PlusIcon } from '../../components/icons/plus'
 import { Link, useNavigate } from 'react-router'
 import { Button } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
@@ -96,7 +96,7 @@ export function GardensScreen() {
                 </li>
               ))}
             </ol>
-            <Button size="lg" icon={<Plus size={18} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
+            <Button size="lg" icon={<PlusIcon size={18} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
               Criar jardim
             </Button>
           </div>
@@ -172,7 +172,7 @@ export function GardensScreen() {
           </ol>
 
           <motion.div variants={fadeUp}>
-            <Button variant="secondary" icon={<Plus size={17} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
+            <Button variant="secondary" icon={<PlusIcon size={17} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
               Novo jardim
             </Button>
           </motion.div>

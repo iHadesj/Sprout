@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeftIcon } from '../../components/icons/arrow-left'
 import { AnimatedNumber } from '../../components/AnimatedNumber'
 import { Button, ButtonLink } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
@@ -37,7 +37,7 @@ export function GardenOverview() {
     <motion.div className={styles.sheet} variants={stagger(0.05)} initial="hidden" animate="show">
       <motion.div variants={fadeUp}>
         <Link to="/" className={styles.back}>
-          <ArrowLeft size={15} strokeWidth={1.6} /> Índice
+          <ArrowLeftIcon size={15} strokeWidth={1.6} /> Índice
         </Link>
       </motion.div>
 

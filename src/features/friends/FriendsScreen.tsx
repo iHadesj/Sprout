@@ -3,7 +3,9 @@
 // Os números vêm do servidor (friend_ranking); aqui só se desenha.
 import { useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
-import { Copy, Share2, UserPlus } from 'lucide-react'
+import { CopyIcon } from '../../components/icons/copy'
+import { SendIcon } from '../../components/icons/send'
+import { UserPlusIcon } from '../../components/icons/user-plus'
 import { Link } from 'react-router'
 import { Button, ButtonLink } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
@@ -149,7 +151,7 @@ export function FriendsScreen() {
               autoCorrect="off"
               spellCheck={false}
             />
-            <Button type="submit" variant="secondary" busy={sendRequest.isPending} icon={<UserPlus size={16} strokeWidth={1.7} />}>
+            <Button type="submit" variant="secondary" busy={sendRequest.isPending} icon={<UserPlusIcon size={16} strokeWidth={1.7} />}>
               Mandar pedido
             </Button>
           </form>
@@ -173,11 +175,11 @@ export function FriendsScreen() {
           </h2>
           <p className={`mono ${styles.invite}`}>{inviteUrl || '…'}</p>
           <div className={styles.actions}>
-            <Button size="sm" variant="secondary" icon={<Copy size={15} strokeWidth={1.7} />} onClick={copy} disabled={!inviteUrl}>
+            <Button size="sm" variant="secondary" icon={<CopyIcon size={15} strokeWidth={1.7} />} onClick={copy} disabled={!inviteUrl}>
               Copiar link
             </Button>
             {'share' in navigator && (
-              <Button size="sm" variant="quiet" icon={<Share2 size={15} strokeWidth={1.7} />} onClick={share} disabled={!inviteUrl}>
+              <Button size="sm" variant="quiet" icon={<SendIcon size={15} strokeWidth={1.7} />} onClick={share} disabled={!inviteUrl}>
                 Compartilhar
               </Button>
             )}

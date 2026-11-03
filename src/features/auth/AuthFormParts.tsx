@@ -1,8 +1,11 @@
-// Peças dos forms de login e cadastro: campo com label que sobe, botão com os três
-// pontinhos, mensagem de erro e o link pra trocar de tela. As animações vêm do loginVariants.
+// Peças dos forms de login e cadastro: campo com label que sobe (senha com o olho pra
+// mostrar), botão com os três pontinhos, mensagem de erro e o link pra trocar de tela.
+// As animações vêm do loginVariants.
 import { useId, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router'
+import { EyeIcon } from '../../components/icons/eye'
+import { EyeOffIcon } from '../../components/icons/eye-off'
 import { useAuthForm } from './authForm'
 import {
   button,
@@ -24,19 +27,24 @@ interface AuthFieldProps {
   autoComplete: string
   required?: boolean
   minLength?: number
-  pattern?: string
-  title?: string
+  /** linha pequena embaixo do campo (ex.: a regra do nome de usuário) */
+  hint?: string
 }
 
 /** Campo com borda inteira. A label fica dentro do campo vazio e sobe (encolhendo) no foco. */
-export function AuthField({ label, value, onValueChange, type = 'text', ...input }: AuthFieldProps) {
+export function AuthField({ label, value, onValueChange, type = 'text', hint, ...input }: AuthFieldProps) {
   const id = useId()
+  const hintId = useId()
   const [focused, setFocused] = useState(false)
+  // senha: o olho alterna entre esconder (password) e mostrar (text)
+  const [shown, setShown] = useState(false)
+  const secret = type === 'password'
   return (
-    <motion.div className={styles.field} variants={itemVariants} data-raised={focused || value !== ''} data-focused={focused}>
+    <motion.div className={styles.field} variants={itemVariants} data-raised={focused || value !== ''} data-focused={focused} data-secret={secret || undefined}>
       <motion.input
         id={id}
-        type={type}
+        type={secret && shown ? 'text' : type}
+        aria-describedby={hint ? hintId : undefined}
         className={styles.input}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
@@ -51,6 +59,22 @@ export function AuthField({ label, value, onValueChange, type = 'text', ...input
       <motion.label layout transition={labelLayout} htmlFor={id} className={styles.label}>
         {label}
       </motion.label>
+      {secret && (
+        <button
+          type="button"
+          className={styles.reveal}
+          aria-label={shown ? 'Esconder senha' : 'Mostrar senha'}
+          aria-pressed={shown}
+          onClick={() => setShown((s) => !s)}
+        >
+          {shown ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+        </button>
+      )}
+      {hint && (
+        <p id={hintId} className={styles.hint}>
+          {hint}
+        </p>
+      )}
     </motion.div>
   )
 }

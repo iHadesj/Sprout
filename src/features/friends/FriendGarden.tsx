@@ -3,7 +3,11 @@
 // Quem manda vê o presente tocar na ilha do amigo; ele vê de novo quando abrir o Sprout.
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowLeft, Droplets, Heart, Minus, Plus } from 'lucide-react'
+import { ArrowLeftIcon } from '../../components/icons/arrow-left'
+import { DropletIcon } from '../../components/icons/droplet'
+import { HeartIcon } from '../../components/icons/heart'
+import { MinusIcon } from '../../components/icons/minus'
+import { PlusIcon } from '../../components/icons/plus'
 import { Link, useParams } from 'react-router'
 import { Button, ButtonLink } from '../../components/Button'
 import { fadeUp, stagger } from '../../lib/motion'
@@ -107,7 +111,7 @@ export function FriendGarden() {
         <motion.div className={styles.sheet} variants={stagger(0.05)} initial="hidden" animate="show">
           <motion.div variants={fadeUp}>
             <Link to="/amigos" className={styles.back}>
-              <ArrowLeft size={15} strokeWidth={1.7} /> Amigos
+              <ArrowLeftIcon size={15} strokeWidth={1.7} /> Amigos
             </Link>
           </motion.div>
 
@@ -161,7 +165,7 @@ export function FriendGarden() {
             <div className={styles.giftRow}>
               <Button
                 variant="secondary"
-                icon={<Droplets size={17} strokeWidth={1.7} />}
+                icon={<DropletIcon size={17} strokeWidth={1.7} />}
                 disabled={wateredToday || !garden}
                 busy={gift.isPending && gift.variables?.kind === 'water'}
                 onClick={water}
@@ -174,7 +178,7 @@ export function FriendGarden() {
             <div className={styles.giftRow}>
               <HeartCounter value={hearts} onChange={setHearts} />
               <Button
-                icon={<Heart size={16} strokeWidth={0} fill="currentColor" />}
+                icon={<HeartIcon size={16} filled />}
                 busy={gift.isPending && gift.variables?.kind === 'heart'}
                 onClick={sendHearts}
               >
@@ -234,7 +238,7 @@ function HeartCounter({ value, onChange }: { value: number; onChange: (n: number
   return (
     <div className={styles.counter} role="group" aria-label="Quantos corações">
       <button type="button" className={styles.step} aria-label="Menos um" {...press(-1)}>
-        <Minus size={15} strokeWidth={1.8} />
+        <MinusIcon size={15} strokeWidth={1.8} />
       </button>
       <input
         className={`mono ${styles.amount}`}
@@ -247,7 +251,7 @@ function HeartCounter({ value, onChange }: { value: number; onChange: (n: number
         }}
       />
       <button type="button" className={styles.step} aria-label="Mais um" {...press(1)}>
-        <Plus size={15} strokeWidth={1.8} />
+        <PlusIcon size={15} strokeWidth={1.8} />
       </button>
     </div>
   )

@@ -1,7 +1,7 @@
 // Prancha em destaque no índice: o jardim aberto por último, com a ilha 3D de verdade e o
 // "Focar agora" a um clique. Só esta prancha tem cena 3D (uma por página, pra não pesar).
 import { motion } from 'motion/react'
-import { Play } from 'lucide-react'
+import { PlayIcon } from '../../components/icons/play'
 import { ButtonLink } from '../../components/Button'
 import { GrowthRuler } from '../../components/GrowthRuler'
 import { Label } from '../../components/Label'
@@ -74,7 +74,7 @@ export function FeaturedGarden({ garden, number, plants, stats, neglected, remem
         {neglected && <p className={styles.note}>As folhas estão amarelando: faz mais de 3 dias sem foco aqui.</p>}
 
         <div className={styles.actions}>
-          <ButtonLink to={`/jardim/${garden.id}/foco`} size="lg" icon={<Play size={17} strokeWidth={1.8} />}>
+          <ButtonLink to={`/jardim/${garden.id}/foco`} size="lg" icon={<PlayIcon size={17} strokeWidth={1.8} />}>
             Focar agora
           </ButtonLink>
           <ButtonLink to={`/jardim/${garden.id}`} variant="quiet">

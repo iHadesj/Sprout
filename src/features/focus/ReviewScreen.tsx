@@ -3,7 +3,7 @@
 // Quem transforma a resposta em crescimento é o servidor, nunca esta tela.
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check } from 'lucide-react'
+import { CheckIcon } from '../../components/icons/check'
 import { Button } from '../../components/Button'
 import { fadeUp, stagger } from '../../lib/motion'
 import { DISTRACTION_OPTIONS, RATING_OPTIONS, type DistractionTag, type FocusRating } from './labels'
@@ -47,7 +47,7 @@ export function ReviewScreen({ onSubmit, busy = false }: ReviewScreenProps) {
               onClick={() => choose(option.value)}
             >
               <span className={styles.box} aria-hidden="true">
-                {selected && <Check size={15} strokeWidth={2.4} />}
+                {selected && <CheckIcon size={15} strokeWidth={2.4} />}
               </span>
               <span className={styles.optionLabel}>{option.label}</span>
               <span className={styles.optionHint}>{option.hint}</span>

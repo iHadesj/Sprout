@@ -205,7 +205,8 @@ try {
   await page.waitForSelector('input[autocomplete=username]') // o form de cadastro já trocou o de login
   check('o link do login abre o cadastro em /criar-conta', new URL(page.url()).pathname === '/criar-conta')
   await page.type('input[type=email]', 'edu@sprout.test')
-  await page.type('input[type=password]', 'senha-forte-123')
+  // senha e confirmar senha
+  for (const input of await page.$$('input[type=password]')) await input.type('senha-forte-123')
   await page.type('input[autocomplete=username]', 'edu')
   await page.click('form button[type=submit]')
   await waitText(page, 'Comece pelo primeiro jardim')

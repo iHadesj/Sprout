@@ -1,7 +1,7 @@
 // Bilhete de presentes recebidos (regar e corações), em cima da prancha em destaque.
 // A animação toca na ilha; aqui fica quem mandou e o "ver de novo".
 import { motion } from 'motion/react'
-import { Heart } from 'lucide-react'
+import { HeartIcon } from '../../components/icons/heart'
 import type { Line } from './useReceivedGifts'
 import styles from './ReceivedGifts.module.css'
 
@@ -22,7 +22,7 @@ export function GiftNote({ lines, onReplay }: { lines: Line[]; onReplay: () => v
       transition={{ duration: 0.4, delay: 0.3 }}
     >
       <span className={styles.icon} aria-hidden="true">
-        <Heart size={16} strokeWidth={0} fill="currentColor" />
+        <HeartIcon size={16} filled />
       </span>
       <div className={styles.body}>
         <p className="kicker">Chegou presente</p>

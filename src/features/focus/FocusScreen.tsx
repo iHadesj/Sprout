@@ -5,7 +5,9 @@
 // - fim: o carimbo PERDIDA (desistiu) ou INVALIDADA (relógio mexido, tempo recusado).
 // A cena do jardim fica no GardenLayout, atrás desta ficha.
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, Play, SkipForward } from 'lucide-react'
+import { ArrowLeftIcon } from '../../components/icons/arrow-left'
+import { ArrowRightIcon } from '../../components/icons/arrow-right'
+import { PlayIcon } from '../../components/icons/play'
 import { Button, ButtonLink } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
 import { Stamp } from '../../components/Stamp'
@@ -55,7 +57,7 @@ export function FocusScreen() {
       <AnimatePresence mode="wait">
         {timer.phase === 'idle' && (
           <motion.div key="idle" className={styles.sheet} {...panel}>
-            <ButtonLink to=".." relative="path" variant="quiet" size="sm" icon={<ArrowLeft size={15} strokeWidth={1.7} />} className={styles.back}>
+            <ButtonLink to=".." relative="path" variant="quiet" size="sm" icon={<ArrowLeftIcon size={15} strokeWidth={1.7} />} className={styles.back}>
               {garden.name}
             </ButtonLink>
             {pendingReview ? (
@@ -96,7 +98,7 @@ export function FocusScreen() {
                   </p>
                 )}
                 <motion.div variants={fadeUp}>
-                  <Button size="lg" disabled={waitMs > 0} busy={focus.busy} onClick={focus.start} icon={<Play size={17} strokeWidth={1.8} />}>
+                  <Button size="lg" disabled={waitMs > 0} busy={focus.busy} onClick={focus.start} icon={<PlayIcon size={17} strokeWidth={1.8} />}>
                     {waitMs > 0 ? `Próximo foco em ${Math.ceil(waitMs / 1000)} s` : 'Começar foco'}
                   </Button>
                 </motion.div>
@@ -142,7 +144,7 @@ export function FocusScreen() {
             <div className={styles.breakBox}>
               <p className="kicker">{timer.breakTotalMs > timer.breakMs ? 'Pausa longa' : 'Pausa'}</p>
               <TimerLabel tone="break" progress={remainingMs(timer) / timer.breakTotalMs} label={formatClock(remainingMs(timer))} caption="levante, beba água, olhe pra longe" />
-              <Button variant="secondary" icon={<SkipForward size={16} strokeWidth={1.7} />} onClick={focus.skipBreak}>
+              <Button variant="secondary" icon={<ArrowRightIcon size={16} strokeWidth={1.7} />} onClick={focus.skipBreak}>
                 Pular pausa
               </Button>
             </div>

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { LogOut } from 'lucide-react'
+import { LogoutIcon } from '../../components/icons/logout'
 import { Button } from '../../components/Button'
 import { updateProfile } from '../../lib/api'
 import { fadeUp, stagger } from '../../lib/motion'
@@ -12,6 +12,7 @@ import { toast } from '../../lib/toast'
 import { useFocusStore } from '../../stores/focusStore'
 import { useAuth } from '../auth/authContext'
 import { profileKey, useProfile } from './queries'
+import { normalizeUsername, USERNAME_HINT, usernameError } from './username'
 import styles from './AccountScreen.module.css'
 
 const TIMEZONES = Intl.supportedValuesOf('timeZone')
@@ -48,7 +49,7 @@ export function AccountScreen() {
       <motion.div variants={fadeUp}>
         <Button
           variant="secondary"
-          icon={<LogOut size={16} strokeWidth={1.7} />}
+          icon={<LogoutIcon size={16} strokeWidth={1.7} />}
           onClick={async () => {
             useFocusStore.getState().reset()
             await supabase.auth.signOut()
@@ -66,7 +67,11 @@ function ProfileForm(props: { userId: string; username: string | null; timezone:
   const [username, setUsername] = useState(props.username ?? '')
   const [timezone, setTimezone] = useState(props.timezone)
   const save = useMutation({
-    mutationFn: () => updateProfile(props.userId, { username: username.trim().toLowerCase() || null, timezone }),
+    mutationFn: () => {
+      const problem = usernameError(username)
+      if (problem) return Promise.reject(new Error(problem))
+      return updateProfile(props.userId, { username: username || null, timezone })
+    },
     onSuccess: async (profile) => {
       queryClient.setQueryData(profileKey(props.userId), profile)
       toast.success('Perfil salvo')
@@ -92,11 +97,11 @@ function ProfileForm(props: { userId: string; username: string | null; timezone:
           <input
             className="field-input"
             value={username}
-            pattern="[a-zA-Z0-9_]{3,24}"
-            title="De 3 a 24 letras, números ou _"
-            onChange={(e) => setUsername(e.target.value)}
+            autoCapitalize="none"
+            spellCheck={false}
+            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
           />
-          <small>É por ele que seus amigos te acham. De 3 a 24 letras, números ou _.</small>
+          <small>É por ele que seus amigos te acham. {USERNAME_HINT}</small>
         </label>
         <label>
           <span>Fuso horário</span>

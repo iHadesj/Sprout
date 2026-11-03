@@ -2,7 +2,7 @@
 // pouco ao abrir; ao fechar, só depois da animação de saída o <dialog> fecha de verdade.
 import { useEffect, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { X } from 'lucide-react'
+import { XIcon } from './icons/x'
 import { ease } from '../lib/motion'
 import styles from './Dialog.module.css'
 
@@ -52,7 +52,7 @@ export function Dialog({ open, title, onClose, children }: DialogProps) {
               <header className={styles.header}>
                 <h2 id="dialog-title">{title}</h2>
                 <button type="button" className={styles.close} aria-label="Fechar" onClick={onClose}>
-                  <X size={18} strokeWidth={1.6} />
+                  <XIcon size={18} strokeWidth={1.6} />
                 </button>
               </header>
               {children}

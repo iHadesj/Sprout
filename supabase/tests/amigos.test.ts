@@ -196,3 +196,29 @@ describe('presentes', () => {
     expect(p[0]).toEqual({ growth: 0, status: 'growing' })
   })
 })
+
+describe('nome de usuário com ponto', () => {
+  async function usernameOf(id: string) {
+    const { rows } = await db.query<{ username: string | null }>('select username from profiles where id = $1', [id])
+    return rows[0].username
+  }
+
+  it('edu.dev vale, e dá pra achar a pessoa por ele', async () => {
+    const name = `edu.dev${Math.floor(Math.random() * 1e5)}`
+    const id = await createUser(db, { username: name })
+    expect(await usernameOf(id)).toBe(name)
+    const other = await person()
+    expect(await rpc(db, other.id, 'send_friend_request', { p_username: name })).toBe('requested')
+  })
+
+  it('ponto no começo, no fim ou dois seguidos não vale (a conta nasce sem nome)', async () => {
+    for (const bad of ['.edu', 'edu.', 'edu..dev']) {
+      expect(await usernameOf(await createUser(db, { username: bad }))).toBeNull()
+    }
+  })
+
+  it('a ficha também barra nome inválido', async () => {
+    const a = await person()
+    await expect(as(db, a.id, (tx) => tx.query(`update profiles set username = 'edu..dev' where id = $1`, [a.id]))).rejects.toMatchObject({ code: '23514' })
+  })
+})
