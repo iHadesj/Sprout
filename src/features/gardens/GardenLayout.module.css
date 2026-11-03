@@ -44,6 +44,9 @@
   min-width: 0;
   height: min(44dvh, 380px);
   min-height: 0;
+  /* a borda do canvas some num esfumado: a ilha nunca aparece cortada numa linha reta */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
 }
 
 @media (min-width: 960px) {
@@ -119,6 +122,8 @@
 
 .page[data-immersive] .frame {
   height: 100%;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .page[data-immersive] .sheet {

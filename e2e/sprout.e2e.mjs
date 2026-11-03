@@ -503,7 +503,7 @@ try {
   await waitText(page, 'corações enviados')
   await click(page, 'Regar o jardim')
   await waitText(page, 'Regado hoje')
-  await click(page, 'Chamar pra focar')
+  await click(page, 'Chamar para sessão')
   await waitText(page, 'Chamado hoje')
   await click(page, 'Plantar uma flor')
   await page.waitForSelector('[aria-label="Cor da flor"] button')

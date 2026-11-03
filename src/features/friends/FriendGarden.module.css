@@ -89,6 +89,9 @@
 .stage {
   position: absolute;
   inset: 0;
+  /* a borda do canvas some num esfumado: a ilha nunca aparece cortada numa linha reta */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
 }
 
 .gifts {
@@ -99,12 +102,6 @@
   align-items: center;
   gap: 8px;
   margin-top: -36px;
-}
-
-.giftsTitle {
-  padding: 6px 24px;
-  background: var(--halo-light);
-  font-size: 20px;
 }
 
 /* o coração no meio e as ações num arco em volta (posições vêm do componente: --x, --y) */

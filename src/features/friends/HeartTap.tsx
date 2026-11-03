@@ -2,12 +2,17 @@
 // anterior, até 64 por vez), dá pra mandar centenas. Os corações juntam e vão pro servidor em
 // lotes (até 999 por envio, o limite do banco), uns instantes depois: tocar 50 vezes não vira
 // 50 requisições. Cada envio solta coraçõezinhos "+N" do botão e (via onSent) na ilha.
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+// O botão é um coração 3D que pula a cada toque (carregado à parte; até ele chegar, ou sem
+// WebGL, fica o coração desenhado).
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { HeartIcon } from '../../components/icons/heart'
 import { sendGift } from '../../lib/api'
 import { toast } from '../../lib/toast'
 import styles from './HeartTap.module.css'
+
+const HeartButton3D = lazy(() => import('../../three/HeartButton3D'))
 
 const FLUSH_MS = 700
 const HOLD_DELAY_MS = 320
@@ -22,6 +27,7 @@ interface Floater {
 
 export function HeartTap({ to, onSent }: { to: string; onSent: (amount: number) => void }) {
   const [total, setTotal] = useState(0)
+  const reduced = useReducedMotion() ?? false
   const [floaters, setFloaters] = useState<Floater[]>([])
   const pending = useRef(0)
   const flushTimer = useRef<number | null>(null)
@@ -88,7 +94,7 @@ export function HeartTap({ to, onSent }: { to: string; onSent: (amount: number) 
           type="button"
           className={styles.heart}
           aria-label="Mandar coração (segure pra mandar muitos)"
-          whileTap={{ scale: 0.88 }}
+          whileTap={{ scale: 0.94 }}
           onPointerDown={(event) => {
             event.preventDefault()
             start()
@@ -102,8 +108,18 @@ export function HeartTap({ to, onSent }: { to: string; onSent: (amount: number) 
             if (event.detail === 0) add(1)
           }}
         >
-          <HeartIcon size={38} filled />
+          <span className={styles.flat} aria-hidden="true">
+            <HeartIcon size={38} filled />
+          </span>
         </motion.button>
+        {/* o coração 3D fica por cima do botão, maior que ele (pra caber o pulo); não recebe clique */}
+        <span className={styles.three} aria-hidden="true">
+          <ErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <HeartButton3D taps={total} motion={!reduced} />
+            </Suspense>
+          </ErrorBoundary>
+        </span>
         <AnimatePresence>
           {floaters.map((f) => (
             <motion.span

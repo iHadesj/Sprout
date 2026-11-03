@@ -52,6 +52,9 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* a borda do canvas some num esfumado: a ilha nunca aparece cortada numa linha reta */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
 }
 
 /* pedrinhas encostadas nas bordas da ilha, em alturas diferentes */
