@@ -11,29 +11,17 @@ import { Drift } from '../../components/organic/Drift'
 import { Pebble } from '../../components/organic/Pebble'
 import type { Garden, Plant } from '../../lib/api'
 import { fromSide, hoverTilt } from '../../lib/motion'
-import { useNow } from '../../lib/useNow'
-import { useProfile } from '../account/queries'
-import { addDays, formatMinutes, lastDays, todayIn } from '../stats/insights'
-import { useFocusDays, useStreaks } from '../stats/queries'
+import { formatMinutes } from '../stats/insights'
+import { useStreaks } from '../stats/queries'
+import { useToday } from '../stats/useToday'
 import { summarizePlants } from './plants'
 import styles from './HomeBlocks.module.css'
 
 /** Sessões por dia que fazem a planta crescer (a regra mora no banco; aqui é só o texto). */
 const DAILY_LIMIT = 10
 
-/** Os últimos 7 dias, a partir das views do banco (no fuso da pessoa). */
-function useWeek() {
-  const profile = useProfile()
-  const timeZone = profile.data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  // o relógio anda de minuto em minuto: à meia-noite o "hoje" vira sozinho
-  const clock = useNow(60_000, true, Date.now)
-  const today = todayIn(timeZone, clock)
-  const focusDays = useFocusDays(addDays(today, -6))
-  return { today, week: lastDays(focusDays.data ?? [], today, 7) }
-}
-
 export function TodayPebble() {
-  const { week } = useWeek()
+  const { week } = useToday()
   const today = week[week.length - 1]
   return (
     <Pebble value={formatMinutes(today.minutes)} label="de foco hoje" size="lg" float={4.2}>
@@ -48,7 +36,7 @@ export function TodayPebble() {
 }
 
 export function StreakPebble() {
-  const { today, week } = useWeek()
+  const { today, week } = useToday()
   const streaks = useStreaks()
   const streak = streaks.data?.current_streak ?? 0
   return (

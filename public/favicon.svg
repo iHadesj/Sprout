@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M12 46 L32 58 L52 46 L32 38 Z" fill="#9b6b43"/>
-  <path d="M12 46 L32 38 L52 46 L32 34 Z" fill="#7cc35a"/>
-  <path d="M31 37 L33 37 L33 22 L31 22 Z" fill="#3c8a4b"/>
-  <path d="M32 24 L16 14 L22 30 Z" fill="#5fb35a"/>
-  <path d="M32 24 L48 10 L44 30 Z" fill="#7cc35a"/>
-  <path d="M32 24 L16 14 L22 30 Z M32 24 L48 10 L44 30 Z" fill="none" stroke="#c8f0b4" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- seixo de papel com o broto da marca (2 folhas cheias: traço fino some em 16px) -->
+  <path d="M32 3 C 50 2, 62 15, 61 33 C 60 51, 48 62, 31 61 C 14 60, 3 49, 3 31 C 3 14, 15 4, 32 3 Z" fill="#f3eee2"/>
+  <g transform="translate(0.8 -29.75) scale(2.6)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 32 C 12 26, 11.5 21, 12 17" fill="none" stroke="#5c564b" stroke-width="2"/>
+    <path d="M11.9 25 C 13.6 21.4, 18 19.9, 21.5 21 C 19.6 24.6, 15.4 26.4, 11.9 25 Z" fill="#2f5b45" stroke="#2f5b45" stroke-width="1.2"/>
+    <path d="M11.7 19.5 C 10 15.9, 5.8 14.4, 2.5 15.5 C 4.4 19.1, 8.4 20.9, 11.7 19.5 Z" fill="#2f5b45" stroke="#2f5b45" stroke-width="1.2"/>
+  </g>
 </svg>

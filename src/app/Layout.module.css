@@ -1,30 +1,36 @@
 .shell {
-  --header-h: 64px;
+  --header-h: 72px;
   display: grid;
   grid-template-rows: auto 1fr;
   min-height: 100dvh;
 }
 
+/* cabeçalho solto: sem barra e sem fio, o nome e a navegação flutuam sobre o papel */
 .header {
   position: relative;
   z-index: 40;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 16px;
   width: min(calc(100% - 32px), 1240px);
   height: var(--header-h);
   margin: 0 auto;
-  padding-top: 18px;
-  border-bottom: 1px solid var(--ink);
+}
+
+/* a marca e a data do caderno, na mesma linha de base */
+.masthead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-right: auto;
 }
 
 .brand {
   position: relative;
-  margin-right: auto;
   color: var(--ink);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   text-decoration: none;
 }
 
@@ -37,27 +43,28 @@
   letter-spacing: 0;
 }
 
-.badge {
-  position: absolute;
-  top: 2px;
-  right: -9px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--stamp);
+.date {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .nav {
   display: flex;
-  gap: 22px;
+  gap: 26px;
 }
 
 .link {
   position: relative;
-  padding: 4px 0 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--ink-2);
   font-size: 17px;
   text-decoration: none;
+  transition: color 0.18s ease;
 }
 
 .link:hover,
@@ -65,13 +72,22 @@
   color: var(--ink);
 }
 
-.underline {
+.text {
+  position: relative;
+}
+
+.icon {
+  display: none;
+}
+
+.badge {
   position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  background: var(--ink);
+  top: 8px;
+  right: -10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stamp);
 }
 
 .short {
@@ -82,9 +98,66 @@
   min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .subtitle,
-  .full {
+/* celular: a navegação vira uma cápsula fixa no rodapé, com ícone e rótulo */
+@media (max-width: 759px) {
+  .shell {
+    --header-h: 60px;
+    --toast-bottom: 104px;
+  }
+
+  .main {
+    padding-bottom: 96px;
+  }
+
+  /* sem a nav no topo: marca à esquerda, data à direita */
+  .masthead {
+    flex: 1;
+    justify-content: space-between;
+    margin-right: 0;
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+
+  .nav {
+    position: fixed;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 50%;
+    z-index: 60;
+    gap: 2px;
+    padding: 6px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--paper-card) 92%, transparent);
+    box-shadow:
+      0 0 0 1px rgba(42, 40, 35, 0.08),
+      0 18px 36px -18px rgba(42, 40, 35, 0.5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transform: translateX(-50%);
+  }
+
+  .link {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-width: 72px;
+    min-height: 54px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-size: 12.5px;
+  }
+
+  .link[aria-current='page'] {
+    color: var(--herb);
+  }
+
+  .icon {
+    display: inline-flex;
+  }
+
+  .full,
+  .subtitle {
     display: none;
   }
 
@@ -92,7 +165,8 @@
     display: inline;
   }
 
-  .nav {
-    gap: 16px;
+  .badge {
+    top: 6px;
+    right: 18px;
   }
 }

@@ -1,0 +1,51 @@
+/* O broto sobre a letra: a base da haste encosta no topo do "t". Tudo em em, pra escalar com
+   a fonte; o traço fica na unidade do viewBox (≈1.5px no tamanho do cabeçalho). */
+.mark {
+  position: absolute;
+  bottom: var(--mark-bottom, 0.84em);
+  left: var(--mark-left, -0.27em);
+  width: 0.54em;
+  height: 0.72em;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+}
+
+.stem,
+.curl {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 2.6;
+}
+
+.stem {
+  stroke: var(--ink-2);
+}
+
+.curl {
+  stroke: var(--herb);
+}
+
+.leaf {
+  /* contorno de tinta com um verde aguado dentro: só o contorno parecia um olho */
+  fill: color-mix(in srgb, var(--herb) 32%, transparent);
+  stroke: var(--herb);
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* dentro de um link: balança uma vez no hover ou no foco, sem loop */
+@media (prefers-reduced-motion: no-preference) {
+  :where(a:hover, a:focus-visible) .mark {
+    animation: sway 0.5s var(--ease);
+  }
+}
+
+@keyframes sway {
+  30% {
+    transform: rotate(-7deg);
+  }
+  65% {
+    transform: rotate(4deg);
+  }
+}

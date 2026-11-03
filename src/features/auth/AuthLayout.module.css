@@ -41,7 +41,14 @@
 }
 
 .wordmark span {
+  position: relative;
   display: inline-block;
+}
+
+/* a letra aqui é inline-block com line-height 1: o pé da caixa fica mais perto da linha de base */
+.mark {
+  --mark-bottom: 0.85em;
+  --mark-left: -0.23em;
 }
 
 .cardWrap {

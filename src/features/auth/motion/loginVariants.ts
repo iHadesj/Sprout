@@ -77,10 +77,15 @@ export const wordmarkVariants: Variants = {
   show: { transition: { staggerChildren: TIMING.letterStagger, delayChildren: TIMING.wordmark } },
 }
 
+const LETTER_DURATION = 0.32
+
 export const letterVariants: Variants = {
   hidden: { opacity: 0, y: 6 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.32, ease } },
+  show: { opacity: 1, y: 0, transition: { duration: LETTER_DURATION, ease } },
 }
+
+/** O broto do "t" começa a desenhar quando a última letra assenta. */
+export const markDelay = (letters: number) => TIMING.wordmark + (letters - 1) * TIMING.letterStagger + LETTER_DURATION
 
 /** Card: entra com spring suave; no sucesso sai encolhendo e desfocando. */
 export function cardVariants(reduced: boolean): Variants {

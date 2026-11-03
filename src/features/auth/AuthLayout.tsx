@@ -8,6 +8,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } 
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from 'motion/react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { PresenceOutlet } from '../../components/AnimatedOutlet'
+import { SproutMark } from '../../components/brand/SproutMark'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { IslandIcon } from '../gardens/IslandIcon'
 import { useAuth } from './authContext'
@@ -19,6 +20,7 @@ import {
   formDelay,
   formVariants,
   letterVariants,
+  markDelay,
   screenVariants,
   shake,
   skyCss,
@@ -32,6 +34,7 @@ import styles from './AuthLayout.module.css'
 const LoginScene = lazy(() => import('../../three/LoginScene'))
 
 const AUTH_PATHS = ['/entrar', '/criar-conta']
+const WORDMARK = 'sprout'
 
 type Phase = 'idle' | 'busy' | 'success'
 
@@ -132,9 +135,11 @@ export function AuthLayout() {
       </motion.div>
 
       <motion.h1 className={styles.wordmark} variants={wordmarkVariants} aria-label="sprout">
-        {[...'sprout'].map((letter, i) => (
+        {[...WORDMARK].map((letter, i) => (
           <motion.span key={i} variants={letterVariants} aria-hidden="true">
             {letter}
+            {/* a marca do app: o broto sai do "t", sempre com 2 folhas (aqui não tem dado de ninguém) */}
+            {i === WORDMARK.length - 1 && <SproutMark leaves={2} draw delay={markDelay(WORDMARK.length)} className={styles.mark} />}
           </motion.span>
         ))}
       </motion.h1>
