@@ -47,22 +47,6 @@
   background: var(--stamp);
 }
 
-/* "da nanda" escrito a lápis por cima do título, torto, como anotação de quem é o caderno */
-.scribble {
-  position: absolute;
-  top: -9px;
-  left: 44px;
-  color: var(--ink-3);
-  font-family: 'Caveat', var(--font-serif);
-  font-size: 19px;
-  font-weight: 500;
-  letter-spacing: 0;
-  white-space: nowrap;
-  opacity: 0.72;
-  transform: rotate(-13deg);
-  pointer-events: none;
-}
-
 .nav {
   display: flex;
   gap: 22px;

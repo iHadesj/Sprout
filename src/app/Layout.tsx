@@ -6,7 +6,6 @@ import { Link, NavLink, useLocation } from 'react-router'
 import { AnimatedOutlet } from '../components/AnimatedOutlet'
 import { Toaster } from '../components/Toaster'
 import { spring } from '../lib/motion'
-import { isForHer } from '../features/surprise/surprise'
 import { useFriends } from '../features/friends/queries'
 import { useFocusStore } from '../stores/focusStore'
 import styles from './Layout.module.css'
@@ -39,12 +38,6 @@ export function Layout() {
         >
           <Link to="/" className={styles.brand}>
             Sprout <span className={styles.subtitle}>caderno de campo</span>
-            {/* rabisco a lápis, só no navegador marcado pelo link secreto */}
-            {isForHer() && (
-              <span className={styles.scribble} aria-hidden="true">
-                da nanda
-              </span>
-            )}
           </Link>
           <nav className={styles.nav} aria-label="Principal">
             {LINKS.map(({ to, label, short, end }) => (
