@@ -1,9 +1,9 @@
-// Modal com o <dialog> nativo (prende o foco e responde ao Esc). A folha de papel sobe um
-// pouco ao abrir; ao fechar, só depois da animação de saída o <dialog> fecha de verdade.
+// Modal com o <dialog> nativo (prende o foco e responde ao Esc). A folha arredondada sobe com
+// mola ao abrir; ao fechar, só depois da animação de saída o <dialog> fecha de verdade.
 import { useEffect, useRef, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { XIcon } from './icons/x'
-import { ease } from '../lib/motion'
+import { spring } from '../lib/motion'
 import styles from './Dialog.module.css'
 
 interface DialogProps {
@@ -45,9 +45,9 @@ export function Dialog({ open, title, onClose, children }: DialogProps) {
             <motion.div
               className={styles.sheet}
               onClick={(event) => event.stopPropagation()}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: 0.24, ease } }}
-              exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
+              initial={{ opacity: 0, y: 48, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1, transition: { ...spring.soft, opacity: { duration: 0.18 } } }}
+              exit={{ opacity: 0, y: 16, scale: 0.97, transition: { duration: 0.15 } }}
             >
               <header className={styles.header}>
                 <h2 id="dialog-title">{title}</h2>

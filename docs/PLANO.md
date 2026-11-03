@@ -516,6 +516,41 @@ O que mudou em relação ao texto acima, e por quê. As migrations em `supabase/
 - Interações sem chat: visitar a ilha do amigo, regar (1 por amigo por dia) e mandar corações (1 a 999 por envio). Quem recebe vê o regador e os corações na ilha ao abrir o Sprout. É enfeite: nada disso mexe em planta ou sessão.
 - Amigos não leem as tabelas um do outro: tudo passa por funções que conferem a amizade (`friend_ranking`, `friend_gardens`, `friend_plants`, `send_gift`...). Erros novos: `SP006` (não encontrado), `SP007` (não são amigos), `SP008` (já regou hoje).
 
-**Surpresa por link**
+**Surpresa**
 
-- `src/features/surprise/surprise.ts`: um link com `?ref=<código>` marca o navegador (localStorage) e ativa enfeites só ali. Nada no banco e nada que mexa em regra.
+- `src/features/surprise/surprise.ts`: a árvore velha aparece nos jardins de uma conta específica (pelo nome de usuário do dono do jardim): ela vê nos jardins dela em qualquer aparelho, e quem visita um jardim dela também vê. Nada no banco e nada que mexa em regra.
+- Antes era um link `?ref=` que marcava o navegador; isso vazava pra outra conta no mesmo navegador. O link antigo agora só é limpo da barra.
+
+**Página principal em blocos e mais interações (2026-11-03)**
+
+- A principal virou blocos (bento): o grande tem a ilha do jardim escolhido, a escolha do jardim e o "Começar foco", que já começa a sessão em um clique (`useStartFocus` navega com `state.autostart`; a tela de foco começa sozinha se nada impedir). Ao lado: hoje, sequência, amigos (mural) e jardins.
+- Menos texto: três níveis (título da página, título de seção, texto); a etiqueta em mono só rotula dados; sem as frases explicativas e sem o protocolo antes do foco.
+- Corações: tocar manda 1, segurar acelera (cada passada manda mais, até 64 por vez); vão pro servidor em lotes de até 999 e sobem ao vivo na ilha do amigo.
+- Novas interações (migration `20261105120000_interacoes.sql`): plantar uma flor na ilha de um amigo (1 por semana, fica lá com o nome de quem plantou), aplaudir conquistas no mural (árvore adulta e marcos de dias seguidos; uma vez por conquista; quem recebe vê fogos) e chamar pra focar (1 por dia; se o amigo concluir um foco nas 6 h seguintes, quem chamou fica sabendo). Erro novo: `SP009`.
+- Nome de usuário aceita ponto (migration `20261104120000_nome_com_ponto.sql`).
+
+**Layout orgânico, sem grade (2026-11-03, substitui o bento acima)**
+
+- Sai a grade de blocos e qualquer caixa com borda. As cores, as fontes e o papel continuam; muda a forma: botões e chips em cápsula, destaques sobre um halo difuso ou numa "pedrinha" (canto irregular que muda devagar), separadores em onda, listas sem fio entre os itens.
+- Peças novas em `src/components/organic/`: `Orbit` (itens num arco), `Wave` (onda que se desenha), `Blob` (mancha atrás da ilha que muda e escorrega na direção do mouse), `Pebble` (número numa pedrinha), `Drift` (lista com recuos alternados), `Magnetic` (o botão principal puxa pro ponteiro) e `InkUnderline` (traço curvo da navegação). As contas das curvas ficam em `curve.ts`.
+- Início: a ilha no centro, hoje e sequência em pedrinhas encostadas nela, os jardins num arco e o "Começar foco" logo abaixo; depois de uma onda, seus jardins e o mural. No celular o botão fica na página (visível sem rolar) e só gruda no rodapé quando sai da tela.
+- Jardim: a ilha à esquerda sangrando pra fora da coluna; o painel recua seguindo a curva dela (no lugar do `shape-outside`, que exigiria float), números num cacho de pedrinhas. Foco: o tempo dentro de um anel; as respostas da revisão em cápsulas num arco. Na tela de foco nada se mexe sozinho.
+- Amigos: ranking como lista curva com avatar e um traço do tamanho dos minutos; os amigos viram um cacho de avatares (pedrinha colorida pela inicial) com minutos da semana e "Visitar jardim". Visita: a ilha no centro e o coração embaixo, com regar, chamar e plantar num arco em volta.
+- Navegação: no celular desce pro rodapé numa cápsula com ícones. A troca de página abre num círculo a partir do clique (o recorte some no fim, pra não cortar o que é fixo).
+- Movimento expressivo (molas, pop no clique, pedrinhas boiando). Com "reduzir movimento" no sistema fica só fade.
+
+**Neve, folhas e sombra (2026-11-03)**
+
+- Bioma neve: chão branco frio, montinhos de neve, pedras com neve, capim seco, flores de neve (edelvais, campainha-branca e açafrão na cor do jardim), neve caindo e uma luz mais branca (com a luz quente o branco virava bege).
+- Espécies de neve só na aparência: o banco continua guardando pinheiro, macieira ou cerejeira; num jardim de neve elas aparecem (e são chamadas) como abeto, bétula e sorveira, com neve nas copas. Nenhuma migration: crescimento, histórico e ranking não mudam, e trocar o bioma troca a aparência de todas as árvores. O texto do aplauso que o servidor escreve ("sua macieira adulta") continua com o nome do banco.
+- Folhas: em vez de triângulos dando voltas no ar, folhas que soltam da altura das copas, caem balançando como pêndulo, pousam no chão, ficam um pouco e somem; fazem sombra.
+- Sombra: o sol subiu (sombras curtas, debaixo de cada árvore, em vez de compridas cruzando a ilha) e a borda ficou macia (PCF com raio).
+
+**Sessão no celular (2026-11-03, migration `20261106120000_sessao_celular.sql`)**
+
+- No iPhone, com o Safari no fundo, a página congela: o relógio monotônico do navegador para e o heartbeat também. Antes isso virava "relógio mexido" (sessão inválida), "sem heartbeat" (inválida) ou planta morta (90 s sem heartbeat).
+- Front: o TICK diz se a página ficou escondida desde o anterior; nesse caso o relógio do sistema vale (só não pode ter voltado) e o timer se acerta por ele. Com a página visível o tempo todo, divergência continua sendo relógio mexido (o critério da Fase 1 segue valendo).
+- Servidor: concluir vale até 2 h depois do tempo planejado e heartbeat parado no meio não invalida mais; a sessão só vira abandonada (planta morre) sem heartbeat e depois do planejado + 2 h. O tempo continua medido pelo banco.
+- Se o iPhone recarregar a aba, a tela de foco retoma sozinha a sessão do servidor (quando o heartbeat dela parou), com o tempo que já passou. Se outra aba ainda está viva, oferece "Continuar aqui".
+- Fechar a aba de propósito continua matando a planta (aviso com keepalive no `pagehide`; ida pro cache de voltar não conta).
+- Notificação no iPhone fica pra depois: o Safari não notifica site comum e a página congelada não dispara aviso na hora; precisaria de push pelo servidor.

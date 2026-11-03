@@ -1,0 +1,21 @@
+.orbit {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px 12px;
+}
+
+/* translate/rotate soltos (e não transform): somam com o transform das animações do Motion */
+.item {
+  display: inline-flex;
+  translate: 0 var(--lift);
+  rotate: var(--tilt);
+}
+
+@media (max-width: 759px) {
+  .item {
+    translate: 0 var(--alt);
+    rotate: none;
+  }
+}

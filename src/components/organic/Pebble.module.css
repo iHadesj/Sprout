@@ -1,0 +1,80 @@
+.pebble {
+  --size: 124px;
+  position: relative;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  width: var(--size);
+  aspect-ratio: 1;
+  padding: 10px;
+  border-radius: var(--pebble);
+  background: var(--paper-deep);
+  /* halo: a sombra desfocada na cor do papel segue o contorno da pedrinha */
+  box-shadow: 0 0 26px 10px rgba(233, 226, 209, 0.75);
+  text-align: center;
+  animation: morph 9s ease-in-out infinite alternate;
+}
+
+.sm {
+  --size: 96px;
+}
+
+.md {
+  --size: 124px;
+}
+
+.lg {
+  --size: 168px;
+}
+
+.float {
+  animation:
+    morph 9s ease-in-out infinite alternate,
+    float var(--period, 4.6s) ease-in-out infinite;
+}
+
+.value {
+  font-family: var(--font-mono);
+  /* cabe na pedrinha: no máximo 24% dela, menos se o número for comprido */
+  font-size: min(calc(var(--size) * 0.24), calc(var(--size) * 1.25 / var(--chars)));
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.label {
+  max-width: calc(var(--size) * 0.8);
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+@keyframes morph {
+  from {
+    border-radius: var(--pebble);
+  }
+  to {
+    border-radius: var(--pebble-2);
+  }
+}
+
+/* translate solto: soma com o transform da entrada (Motion) */
+@keyframes float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pebble,
+  .float {
+    animation: none;
+  }
+}

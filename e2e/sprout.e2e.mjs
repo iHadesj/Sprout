@@ -53,7 +53,8 @@ async function newPage() {
   page.on('pageerror', (error) => pageErrors.push(error.message))
   page.on('dialog', (dialog) => dialog.accept()) // beforeunload: aceita sair
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && !/Failed to load resource|ERR_|status of 40\d/.test(msg.text())) pageErrors.push(msg.text())
+    // (o WebSocket é o recarregamento automático do Vite, que cai quando o teste congela a aba)
+    if (msg.type() === 'error' && !/Failed to load resource|ERR_|status of 40\d|WebSocket connection to 'ws:\/\/localhost/.test(msg.text())) pageErrors.push(msg.text())
   })
   return page
 }
@@ -178,7 +179,8 @@ async function sceneState(page) {
     })
     const yellow = scene.getObjectByName('grass-tufts')?.material?.userData?.uniforms?.uYellow?.value ?? 0
     const sign = scene.getObjectByName('honesty-sign')?.userData?.level ?? 0
-    return { growing: growing ? { ...growing.userData } : null, instanced, burst, yellow, sign }
+    const flowers = scene.getObjectByName('friend-flowers')?.children.length ?? 0
+    return { growing: growing ? { ...growing.userData } : null, instanced, burst, yellow, sign, flowers }
   })
 }
 
@@ -209,7 +211,7 @@ try {
   for (const input of await page.$$('input[type=password]')) await input.type('senha-forte-123')
   await page.type('input[autocomplete=username]', 'edu')
   await page.click('form button[type=submit]')
-  await waitText(page, 'Comece pelo primeiro jardim')
+  await waitText(page, 'Plante o primeiro jardim')
   const [{ id: userId }] = await sql(`select id from auth.users where email = 'edu@sprout.test'`)
   const [profile] = await sql('select username, timezone from profiles where id = $1', [userId])
   check('cadastro cria o profile com username e fuso do navegador', profile?.username === 'edu' && !!profile?.timezone, JSON.stringify(profile))
@@ -303,6 +305,30 @@ try {
   await sleep(800)
   check('de volta à aba: o timer segue rodando, sem aviso', !!(await page.$('[role=timer]')) && !(await text(page)).includes('A planta morreu'))
 
+  section('Celular: o Safari no fundo congela a página')
+  // no iPhone o relógio monotônico para com a página congelada: na volta, o do sistema está
+  // minutos à frente sem ninguém ter mexido nele. Simula: página escondida e, na volta, +10 min.
+  const leftBefore = await page.$eval('[role=timer]', (el) => el.getAttribute('aria-label'))
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  await sleep(600)
+  await page.evaluate(() => {
+    const real = Date.now
+    Date.now = () => real() + 10 * 60_000
+    delete document.visibilityState
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  await sleep(1_000)
+  const leftAfter = await page.$eval('[role=timer]', (el) => el.getAttribute('aria-label')).catch(() => null)
+  const minutesOf = (label) => (label ? Number(label.split(':')[0]) : NaN)
+  check(
+    'voltar do fundo com o relógio do sistema 10 min à frente não invalida (e o timer anda os 10 min)',
+    !!leftAfter && !(await text(page)).includes('Sessão inválida') && minutesOf(leftBefore) - minutesOf(leftAfter) >= 9,
+    `${leftBefore} -> ${leftAfter}`,
+  )
+
   section('Desistir mata a planta (e ela fica seca no jardim)')
   await click(page, 'Desistir')
   await click(page, 'Desistir mesmo')
@@ -328,6 +354,36 @@ try {
   await sleep(500)
   const invalid = await sql('select s.status, s.fail_reason, p.status as plant from sessions s join plants p on p.id = s.plant_id where s.id = $1', [s3.id])
   check('relógio mexido: sessão "invalid" e planta viva no banco', invalid[0]?.status === 'invalid' && invalid[0]?.fail_reason === 'clock_changed' && invalid[0]?.plant === 'growing', JSON.stringify(invalid[0]))
+
+  section('Celular: o iPhone recarregou a aba no meio do foco')
+  await click(page, 'Voltar')
+  await sleep(1_000)
+  check('depois de uma sessão encerrada, a tela não tenta retomar ela', !(await page.$('[role=timer]')) && !(await activeSession(userId)))
+  await startFocus(page)
+  const s5 = await activeSession(userId)
+  // outra aba na frente; a do foco congela (heartbeat para) e o tempo passa no banco
+  const reopened = await newPage()
+  const cdp = await page.createCDPSession()
+  await cdp.send('Page.setWebLifecycleState', { state: 'frozen' })
+  await sql(`update sessions set started_at = started_at - interval '10 minutes', last_heartbeat_at = now() - interval '100 seconds' where id = $1`, [s5.id])
+  await reopened.goto(`${APP}/jardim/${gardenA}/foco`, { waitUntil: 'networkidle0' })
+  await reopened.waitForSelector('[role=timer]', { timeout: 10_000 }).catch(async () => {
+    await reopened.screenshot({ path: join(OUT, 'falha-retomar.png') })
+    console.log('  (texto da aba nova)', (await text(reopened)).slice(0, 300).replaceAll('\n', ' | '))
+  })
+  const resumedLeft = await reopened.$eval('[role=timer]', (el) => el.getAttribute('aria-label')).catch(() => null)
+  check(
+    'aba recarregada com o heartbeat parado: o foco volta sozinho, com o tempo que já passou',
+    !!resumedLeft && Number(resumedLeft.split(':')[0]) <= s5.planned_minutes - 9 && (await activeSession(userId))?.id === s5.id,
+    `${resumedLeft} de ${s5.planned_minutes} min`,
+  )
+  // encerra: desiste na aba nova, fecha ela e descongela a antiga
+  await click(reopened, 'Desistir')
+  await click(reopened, 'Desistir mesmo')
+  await waitText(reopened, 'A planta morreu')
+  await reopened.close({ runBeforeUnload: false })
+  await cdp.send('Page.setWebLifecycleState', { state: 'active' })
+  await page.bringToFront()
 
   section('Fase 3 · planta adulta')
   // a planta do B está com 1: mais 5 sessões honestas (+2 cada) e ela fica adulta
@@ -438,23 +494,46 @@ try {
   await page.waitForFunction((id) => location.pathname === `/amigos/${id}`, { timeout: 10_000 }, amigaId)
   scene = await waitScene(page, (s) => s.growing?.gardenId === amigaGarden.id)
   check('visita: a ilha da amiga aparece com a árvore dela', scene?.growing?.plantId === amigaPlant.id, JSON.stringify(scene?.growing))
+  // 7 toques no coração (cada toque manda 1; vão pro servidor juntos, num lote)
   await page.evaluate(() => {
-    const input = document.querySelector('input[inputmode=numeric]')
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '7')
-    input.dispatchEvent(new Event('input', { bubbles: true }))
+    const heart = document.querySelector('button[aria-label^="Mandar coração"]')
+    for (let i = 0; i < 7; i++) heart.click()
   })
-  await click(page, 'Mandar 7 corações')
-  await waitText(page, '7 corações enviados')
+  await waitText(page, '7')
+  await waitText(page, 'corações enviados')
   await click(page, 'Regar o jardim')
   await waitText(page, 'Regado hoje')
+  await click(page, 'Chamar pra focar')
+  await waitText(page, 'Chamado hoje')
+  await click(page, 'Plantar uma flor')
+  await page.waitForSelector('[aria-label="Cor da flor"] button')
+  // clique direto no botão: a caixa das cores ainda está abrindo (animada) e um clique de mouse erraria
+  await page.$eval('[aria-label="Cor da flor"] button', (b) => b.click())
+  await waitText(page, 'Você plantou uma flor em Leitura')
+  await sleep(1_200) // o lote de corações sai uns instantes depois do último toque
   const sent = await sql(`select kind, sum(amount)::int as n from gifts where from_id = $1 and to_id = $2 group by kind order by kind`, [userId, amigaId])
-  check('presentes gravados: 7 corações e 1 rega', JSON.stringify(sent) === JSON.stringify([{ kind: 'heart', n: 7 }, { kind: 'water', n: 1 }]), JSON.stringify(sent))
+  check(
+    'presentes gravados: 7 corações (em lote), 1 rega, 1 chamado e 1 flor',
+    JSON.stringify(sent) === JSON.stringify([{ kind: 'flower', n: 1 }, { kind: 'heart', n: 7 }, { kind: 'seed', n: 1 }, { kind: 'water', n: 1 }]),
+    JSON.stringify(sent),
+  )
+  scene = await waitScene(page, (s) => s.flowers > 0)
+  check('a flor brota na ilha da amiga', scene?.flowers === 1)
   const plantAfter = await sql('select growth, status from plants where id = $1', [amigaPlant.id])
   check('presente não mexe na árvore dela', plantAfter[0]?.growth === 4 && plantAfter[0]?.status === 'growing')
   const twice = await rawApi(page, 'POST', '/rest/v1/rpc/send_gift', { p_to: amigaId, p_kind: 'water' })
   check('regar de novo no mesmo dia é recusado (SP008)', twice.status >= 400 && twice.body.includes('SP008'), twice.body.slice(0, 80))
   const stranger = await rawApi(page, 'POST', '/rest/v1/rpc/friend_gardens', { p_user: estranhoId })
   check('jardim de quem não é amigo não abre (SP007)', stranger.status >= 400 && stranger.body.includes('SP007'), stranger.body.slice(0, 80))
+
+  // mural: a árvore da amiga fica adulta e ele aplaude
+  await sql(`update plants set growth = 10, status = 'grown', ended_at = now() where id = $1`, [amigaPlant.id])
+  await page.goto(`${APP}/amigos`, { waitUntil: 'networkidle0' })
+  await waitText(page, '@amiga deixou um pinheiro adulto em Leitura')
+  await page.click('button[aria-label^="Aplaudir"]')
+  await page.waitForSelector('button[aria-label^="Você aplaudiu"]', { timeout: 10_000 })
+  const [clapRow] = await sql('select count(*)::int as n from claps where from_id = $1 and to_id = $2', [userId, amigaId])
+  check('mural: aplaudir a árvore adulta da amiga grava 1 aplauso', clapRow?.n === 1)
 
   // a amiga manda presentes de volta: aparecem quando ele abre o Sprout
   await sql(`insert into gifts (from_id, to_id, kind, amount) values ($1, $2, 'water', 1), ($1, $2, 'heart', 999)`, [amigaId, userId])
@@ -493,11 +572,12 @@ try {
   check('link de convite aceito vira amizade na hora', invited?.status === 'accepted', JSON.stringify(invited))
 
   section('Saídas da página durante o foco')
-  // documento novo zera os relógios falsos; o "Focar agora" navega dentro do app,
-  // então o "voltar" do navegador fica dentro do app e o bloqueio consegue segurar
+  // documento novo zera os relógios falsos; o "Começar foco" da ficha navega dentro do app
+  // (e já começa sozinho), então o "voltar" do navegador fica no app e o bloqueio consegue segurar
   await page.goto(`${APP}/jardim/${gardenA}`, { waitUntil: 'networkidle0' })
-  await click(page, 'Focar agora')
-  await startFocus(page)
+  await click(page, 'Começar foco')
+  await page.waitForSelector('[role=timer]', { timeout: 10_000 })
+  check('um clique em "Começar foco" já começa a sessão', !!(await activeSession(userId)))
   await page.evaluate(() => history.back())
   await waitText(page, 'Sair do foco?')
   check('navegar durante o foco pede confirmação', true)

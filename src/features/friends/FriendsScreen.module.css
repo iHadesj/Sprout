@@ -1,9 +1,10 @@
 .page {
-  display: grid;
-  gap: 32px;
-  width: min(calc(100% - 32px), 920px);
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+  width: min(calc(100% - 32px), 960px);
   margin: 0 auto;
-  padding: 36px 0 72px;
+  padding: 20px 0 72px;
 }
 
 .header {
@@ -11,31 +12,45 @@
   gap: 6px;
 }
 
-.lead {
-  color: var(--ink-2);
-  font-size: 18px;
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
-/* quadro da semana: linhas pautadas, uma barra a traço por pessoa */
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
+.lead {
+  color: var(--ink-3);
+  font-size: 15px;
+  font-style: italic;
+}
+
+/* quadro da semana: sem linhas; cada pessoa é uma linha solta que recua pela curva */
 .ranking {
-  margin: -8px 0 0;
+  display: grid;
+  gap: 4px;
+  margin: 0;
   padding: 0;
-  border-top: 1px solid var(--ink);
   list-style: none;
 }
 
-.ranking > li {
-  border-bottom: 1px solid var(--rule);
-}
-
 .row {
-  display: grid;
-  grid-template-columns: 36px minmax(120px, auto) 1fr auto;
-  gap: 16px;
+  display: flex;
   align-items: center;
-  padding: 14px 4px;
+  gap: 14px;
+  min-height: 60px;
+  padding: 6px 18px 6px 8px;
+  border-radius: var(--r-pill);
   color: var(--ink);
   text-decoration: none;
+  transition: background-color 0.18s ease;
 }
 
 a.row:hover {
@@ -43,15 +58,24 @@ a.row:hover {
 }
 
 .position {
+  width: 22px;
   color: var(--ink-3);
-  font-size: 14px;
+  font-size: 15px;
+  text-align: right;
+}
+
+.ranking li:first-child .position {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .who {
   display: inline-flex;
+  flex: none;
   align-items: baseline;
   gap: 8px;
-  font-size: 21px;
+  min-width: 110px;
+  font-size: 20px;
 }
 
 .me {
@@ -60,14 +84,17 @@ a.row:hover {
   font-style: italic;
 }
 
+/* o traço: uma cápsula do tamanho dos minutos, crescendo da esquerda */
 .bar {
-  height: 10px;
-  border-bottom: 1px dashed var(--rule-strong);
+  flex: 1;
+  min-width: 40px;
+  height: 12px;
 }
 
 .barFill {
   display: block;
   height: 100%;
+  border-radius: var(--r-pill);
   background: var(--ink-2);
   transform-origin: left;
 }
@@ -77,33 +104,124 @@ a.row:hover {
 }
 
 .minutes {
-  min-width: 92px;
+  flex: none;
+  min-width: 84px;
   font-size: 17px;
   text-align: right;
 }
 
 .empty {
-  margin-top: -16px;
   color: var(--ink-3);
   font-style: italic;
 }
 
+/* amigos: um cacho de avatares soltos, cada um com nome, minutos e "Visitar jardim" */
+.people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 40px;
+  margin: 0;
+  padding: 8px 0 20px;
+  list-style: none;
+}
+
+.person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 190px;
+  text-align: center;
+}
+
+/* alturas e giros diferentes: o cacho não fica em fileira reta */
+.person[data-i='1'] {
+  translate: 0 22px;
+}
+
+.person[data-i='2'] {
+  translate: 0 8px;
+}
+
+.avatarLink {
+  display: inline-flex;
+  margin-bottom: 4px;
+  rotate: -3deg;
+}
+
+.person[data-i='1'] .avatarLink {
+  rotate: 4deg;
+}
+
+.avatarLink a {
+  display: inline-flex;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--pebble);
+  box-shadow: 0 14px 26px -16px rgba(42, 40, 35, 0.6);
+}
+
+.name {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.week {
+  color: var(--ink-2);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+.personActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+
+.linkButton {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 15px;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  color: var(--ink);
+}
+
+.wave {
+  margin: -8px 0 -12px;
+}
+
+/* adicionar e convite: duas correntes de larguras diferentes, a segunda mais abaixo */
 .columns {
-  display: grid;
-  gap: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 36px 6%;
 }
 
-@media (min-width: 760px) {
-  .columns {
-    grid-template-columns: 1fr 1fr;
-    gap: 48px;
-  }
+.addCol {
+  flex: 1 1 360px;
+  max-width: 500px;
 }
 
-.section {
-  display: grid;
-  gap: 12px;
-  align-content: start;
+.inviteCol {
+  flex: 1 1 300px;
+  max-width: 380px;
+  margin-top: 40px;
 }
 
 .add {
@@ -118,25 +236,28 @@ a.row:hover {
   width: auto;
 }
 
+/* link de convite numa cápsula, com o botão de copiar dentro */
 .invite {
-  padding: 10px 12px;
-  border: 1px dashed var(--rule-strong);
-  background: var(--paper-card);
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-
-.actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 6px 6px 18px;
+  border-radius: var(--r-pill);
+  background: var(--paper-deep);
 }
 
-.hint {
-  color: var(--ink-3);
-  font-size: 15px;
-  font-style: italic;
+.inviteUrl {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite > button {
+  flex: none;
 }
 
 .pending {
@@ -147,38 +268,6 @@ a.row:hover {
   list-style: none;
   color: var(--ink-2);
   font-size: 15px;
-}
-
-.linkButton {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink-2);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.people {
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--ink);
-  list-style: none;
-}
-
-.person {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--rule);
-}
-
-.name {
-  font-size: 20px;
 }
 
 .dialogText {
@@ -193,18 +282,56 @@ a.row:hover {
   margin-top: 20px;
 }
 
-@media (max-width: 520px) {
-  .row {
-    grid-template-columns: 28px 1fr auto;
-    gap: 10px;
+@media (max-width: 759px) {
+  .ranking li {
+    margin-inline-start: 0 !important;
   }
 
-  .bar {
-    grid-column: 2 / -1;
-    grid-row: 2;
+  .row {
+    gap: 10px;
+    padding-right: 10px;
+  }
+
+  .who {
+    min-width: 0;
+    font-size: 18px;
   }
 
   .minutes {
     min-width: 0;
+    font-size: 15px;
+  }
+
+  .people {
+    justify-content: center;
+    gap: 24px 16px;
+  }
+
+  .person {
+    width: calc(50% - 8px);
+  }
+
+  .inviteCol {
+    margin-top: 0;
+  }
+}
+
+/* celular estreito: o traço desce pra uma segunda linha, embaixo do nome */
+@media (max-width: 420px) {
+  .row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    border-radius: 28px;
+  }
+
+  .who {
+    margin-right: auto;
+  }
+
+  .bar {
+    order: 5;
+    flex: 0 0 calc(100% - 86px);
+    height: 8px;
+    margin: 0 0 6px 86px;
   }
 }

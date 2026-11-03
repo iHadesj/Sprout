@@ -113,9 +113,31 @@ export type Database = {
           from_id: string
           id: string
           kind: string
+          note: string | null
+          reply_seen_at: string | null
           seen_at: string | null
           to_id: string
         }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      flowers: {
+        Row: {
+          color: string
+          from_id: string
+          garden_id: string
+          id: string
+          planted_at: string
+          position_x: number
+          position_z: number
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      claps: {
+        Row: { created_at: string; event_key: string; from_id: string; to_id: string }
         Insert: never
         Update: never
         Relationships: []
@@ -213,8 +235,31 @@ export type Database = {
       send_gift: { Args: { p_amount?: number; p_kind: string; p_to: string }; Returns: undefined }
       unseen_gifts: {
         Args: never
-        Returns: { amount: number; from_id: string; from_username: string | null; kind: string; last_at: string }[]
+        Returns: { amount: number; from_id: string; from_username: string | null; kind: string; notes: string[]; last_at: string }[]
       }
+      plant_flower: { Args: { p_color: string; p_garden: string }; Returns: Database['public']['Tables']['flowers']['Row'] }
+      garden_flowers: {
+        Args: { p_garden: string }
+        Returns: { color: string; from_username: string | null; id: string; planted_at: string; position_x: number; position_z: number }[]
+      }
+      friend_feed: {
+        Args: never
+        Returns: {
+          clapped: boolean
+          claps: number
+          detail: string | null
+          event_key: string
+          garden_name: string | null
+          happened_at: string
+          is_me: boolean
+          kind: string
+          user_id: string
+          username: string | null
+        }[]
+      }
+      clap: { Args: { p_event_key: string; p_to: string }; Returns: boolean }
+      nudge_replies: { Args: never; Returns: { gift_id: string; minutes: number; to_id: string; to_username: string | null }[] }
+      mark_nudge_replies_seen: { Args: never; Returns: number }
       mark_gifts_seen: { Args: never; Returns: number }
     }
     Enums: {

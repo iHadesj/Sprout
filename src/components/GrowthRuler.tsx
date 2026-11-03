@@ -1,5 +1,7 @@
-// Régua de crescimento: 10 tracinhos, preenchidos até o growth da planta (x de 10).
+// Régua de crescimento: 10 cápsulas, preenchidas até o growth da planta (x de 10). Entram uma
+// a uma com mola.
 import { motion } from 'motion/react'
+import { spring } from '../lib/motion'
 import styles from './GrowthRuler.module.css'
 
 export function GrowthRuler({ growth }: { growth: number }) {
@@ -10,9 +12,9 @@ export function GrowthRuler({ growth }: { growth: number }) {
           key={i}
           className={styles.tick}
           data-on={i < growth || undefined}
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ delay: 0.15 + i * 0.03, duration: 0.2 }}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ ...spring.pop, delay: 0.15 + i * 0.04 }}
         />
       ))}
     </span>

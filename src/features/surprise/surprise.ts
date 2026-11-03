@@ -1,40 +1,34 @@
-// Surpresa secreta: um link com cara de link comum marca o navegador de uma pessoa.
+// Surpresa: a árvore velha com o entalhe aparece nos jardins de uma conta só.
 //
-// Como funciona:
-// 1. Ela abre o site uma vez com ?ref=<código> (ex.: https://seusite.vercel.app/?ref=yny93jv).
-//    Parece um link de compartilhamento qualquer: nada no link diz que é pra ela.
-// 2. O site guarda uma marquinha no navegador (localStorage) e tira o ?ref da barra de
-//    endereço. Daí pra frente, naquele aparelho, isForHer() é true, mesmo pelo link comum.
-// 3. ?ref=0 apaga a marquinha (útil se você testar no seu próprio celular).
+// Quem decide é o dono do jardim (o nome de usuário dele), não o navegador:
+// - ela vê a árvore nos jardins dela, em qualquer aparelho;
+// - quem visita um jardim dela também vê (é o jardim dela);
+// - nos jardins de qualquer outra pessoa, nada muda.
+// Nada disso mexe em sessão, crescimento ou banco.
 //
-// Os nomes de chave e parâmetro são neutros de propósito. Nada disso mexe em sessão,
-// crescimento ou banco.
+// Antes era um link (?ref=...) que marcava o navegador; isso vazava pra quem usasse o
+// mesmo navegador com outra conta. O link antigo ainda funciona como link comum: o
+// parâmetro some da barra e a marquinha velha é apagada.
 
-const PARAM = 'ref'
-const CODE = 'yny93jv'
-const RESET = '0'
-const KEY = 'sprout:ref'
+const HER = 'nandinhaaamordoedu'
+const OLD_PARAM = 'ref'
+const OLD_KEY = 'sprout:ref'
 
-let forHer = false
-
-/** Roda uma vez, antes do app montar: lê o ?ref= (se veio), guarda ou apaga a marquinha. */
+/** Roda uma vez, antes do app montar: limpa o ?ref= e a marquinha do jeito antigo. */
 export function captureSurpriseLink() {
   try {
+    localStorage.removeItem(OLD_KEY)
     const url = new URL(window.location.href)
-    const code = url.searchParams.get(PARAM)
-    if (code === CODE) localStorage.setItem(KEY, code)
-    if (code === RESET) localStorage.removeItem(KEY)
-    if (code !== null) {
-      url.searchParams.delete(PARAM)
+    if (url.searchParams.has(OLD_PARAM)) {
+      url.searchParams.delete(OLD_PARAM)
       window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
     }
-    forHer = localStorage.getItem(KEY) === CODE
   } catch {
-    forHer = false // sem armazenamento: Sprout normal
+    // sem armazenamento: nada pra limpar
   }
 }
 
-/** Este navegador é o dela? */
-export function isForHer(): boolean {
-  return forHer
+/** Esse jardim é dela? (pelo nome de usuário de quem é dono do jardim) */
+export function isHers(username: string | null | undefined): boolean {
+  return username?.toLowerCase() === HER
 }

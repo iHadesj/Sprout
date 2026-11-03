@@ -222,3 +222,66 @@ describe('nome de usuário com ponto', () => {
     await expect(as(db, a.id, (tx) => tx.query(`update profiles set username = 'edu..dev' where id = $1`, [a.id]))).rejects.toMatchObject({ code: '23514' })
   })
 })
+
+describe('flores, aplausos e chamados', () => {
+  it('amigo planta uma flor por semana; o dono vê, com o nome de quem plantou', async () => {
+    const [a, b] = [await person(), await person()]
+    await befriend(a, b)
+    const garden = await createGarden(db, b.id, { name: 'Leitura' })
+    const flower = await rpc<{ color: string; garden_id: string }>(db, a.id, 'plant_flower', { p_garden: garden.id, p_color: '#f08fb0' })
+    expect(flower).toMatchObject({ color: '#f08fb0', garden_id: garden.id })
+    const seen = await rows<{ from_username: string }>(b.id, 'select * from garden_flowers($1)', [garden.id])
+    expect(seen.map((f) => f.from_username)).toEqual([a.username])
+    await expect(rpc(db, a.id, 'plant_flower', { p_garden: garden.id, p_color: '#7fb4f0' })).rejects.toMatchObject({ code: 'SP009' })
+    const unseen = await rows<{ kind: string; notes: string[] }>(b.id, 'select * from unseen_gifts()')
+    expect(unseen).toEqual([expect.objectContaining({ kind: 'flower', notes: ['Leitura'] })])
+  })
+
+  it('quem não é amigo não planta nem vê as flores; ninguém planta no próprio jardim', async () => {
+    const [a, c] = [await person(), await person()]
+    const garden = await createGarden(db, a.id)
+    await expect(rpc(db, c.id, 'plant_flower', { p_garden: garden.id, p_color: '#f08fb0' })).rejects.toMatchObject({ code: 'SP007' })
+    await expect(rows(c.id, 'select * from garden_flowers($1)', [garden.id])).rejects.toMatchObject({ code: 'SP007' })
+    await expect(rpc(db, a.id, 'plant_flower', { p_garden: garden.id, p_color: '#f08fb0' })).rejects.toMatchObject({ code: 'SP007' })
+  })
+
+  it('mural mostra a árvore adulta do amigo; aplaudir uma vez vira presente', async () => {
+    const [a, b] = [await person(), await person()]
+    await befriend(a, b)
+    const garden = await createGarden(db, b.id)
+    const s = await rpc<{ plant_id: string }>(db, b.id, 'start_session', { p_garden_id: garden.id })
+    await db.query(`update plants set growth = 10, status = 'grown', ended_at = now() where id = $1`, [s.plant_id])
+    const feed = await rows<{ event_key: string; kind: string; is_me: boolean; claps: number }>(a.id, 'select * from friend_feed()')
+    const event = feed.find((e) => e.kind === 'adult')!
+    expect(event).toMatchObject({ event_key: `adult:${s.plant_id}`, is_me: false, claps: 0 })
+    expect(await rpc(db, a.id, 'clap', { p_to: b.id, p_event_key: event.event_key })).toBe(true)
+    expect(await rpc(db, a.id, 'clap', { p_to: b.id, p_event_key: event.event_key })).toBe(false)
+    const after = await rows<{ claps: number; clapped: boolean }>(a.id, 'select * from friend_feed()')
+    expect(after.find((e) => e.claps === 1)).toMatchObject({ clapped: true })
+    const unseen = await rows<{ kind: string; amount: number; notes: string[] }>(b.id, 'select * from unseen_gifts()')
+    expect(unseen).toEqual([expect.objectContaining({ kind: 'clap', amount: 1 })])
+    expect(unseen[0].notes[0]).toMatch(/^(seu pinheiro adulto|sua (macieira|cerejeira) adulta)$/)
+  })
+
+  it('aplauso em conquista inventada ou de outra pessoa é recusado', async () => {
+    const [a, b] = [await person(), await person()]
+    await befriend(a, b)
+    await expect(rpc(db, a.id, 'clap', { p_to: b.id, p_event_key: 'adult:00000000-0000-0000-0000-000000000000' })).rejects.toMatchObject({ code: 'SP006' })
+    await expect(rpc(db, a.id, 'clap', { p_to: b.id, p_event_key: `streak:${a.id}:7:2026-11-03` })).rejects.toMatchObject({ code: 'SP006' })
+  })
+
+  it('chamar pra focar: 1 por dia; se o amigo concluir um foco depois, quem chamou fica sabendo', async () => {
+    const [a, b] = [await person(), await person()]
+    await befriend(a, b)
+    await rpc(db, a.id, 'send_gift', { p_to: b.id, p_kind: 'seed' })
+    await expect(rpc(db, a.id, 'send_gift', { p_to: b.id, p_kind: 'seed' })).rejects.toMatchObject({ code: 'SP008' })
+    expect(await rows(a.id, 'select * from nudge_replies()')).toEqual([])
+    await completedSessions(b.id, 1, 25)
+    // a sessão do teste termina "agora - 1 s": empurra o chamado pra antes dela
+    await db.query(`update gifts set created_at = now() - interval '1 hour' where from_id = $1 and kind = 'seed'`, [a.id])
+    const replies = await rows<{ to_username: string; minutes: number }>(a.id, 'select * from nudge_replies()')
+    expect(replies).toEqual([expect.objectContaining({ to_username: b.username, minutes: 25 })])
+    expect(await rpc(db, a.id, 'mark_nudge_replies_seen')).toBe(1)
+    expect(await rows(a.id, 'select * from nudge_replies()')).toEqual([])
+  })
+})

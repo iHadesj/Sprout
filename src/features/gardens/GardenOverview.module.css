@@ -1,12 +1,21 @@
 .sheet {
-  display: grid;
-  gap: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* desktop: cada linha recua pela curva da ilha (--indent vem do componente) */
+@media (min-width: 960px) {
+  .row {
+    margin-inline-start: var(--indent, 0);
+  }
 }
 
 .back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 32px;
   color: var(--ink-2);
   font-size: 15px;
   text-decoration: none;
@@ -16,10 +25,23 @@
   color: var(--ink);
 }
 
+/* o título morde a beirada da ilha, com halo de papel pra ler por cima dela */
 .header {
+  position: relative;
   display: grid;
-  gap: 4px;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 10px 28px 14px 16px;
+  margin: -6px 0 -6px -16px;
+  background: var(--halo-light);
 }
+
+@media (min-width: 960px) {
+  .header {
+    margin-left: -92px;
+  }
+}
+
 
 .meta {
   display: flex;
@@ -33,47 +55,73 @@
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   margin-right: 4px;
-  border: 1px solid var(--ink);
   border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(42, 40, 35, 0.35);
 }
 
-/* régua de crescimento: 10 tracinhos, os de tinta são o que já cresceu */
-.records {
-  margin: 8px 0 0;
-}
-
-.record {
+/* números num cacho de pedrinhas de tamanhos diferentes, encostadas umas nas outras */
+.cluster {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px 0 8px 10px;
 }
 
-.record dt {
-  color: var(--ink-2);
+.cluster {
+  flex-wrap: nowrap;
 }
 
-.leader {
-  flex: 1;
-  border-bottom: 2px dotted var(--rule-strong);
-  transform: translateY(-4px);
+.cluster > :nth-child(1) {
+  --size: 156px !important;
 }
 
-.record dd {
-  margin: 0;
-  font-size: 16px;
+.cluster > :nth-child(2) {
+  --size: 112px !important;
+  margin-left: -14px;
+  translate: 0 -30px;
+}
+
+.cluster > :nth-child(3) {
+  --size: 88px !important;
+  margin-left: -16px;
+  translate: 0 34px;
+}
+
+.cluster > :nth-child(4) {
+  --size: 96px !important;
+  margin-left: -12px;
+  translate: 0 -10px;
+}
+
+@media (max-width: 480px) {
+  .cluster > :nth-child(1) {
+    --size: 124px !important;
+  }
+
+  .cluster > :nth-child(2) {
+    --size: 96px !important;
+  }
+
+  .cluster > :nth-child(3),
+  .cluster > :nth-child(4) {
+    --size: 80px !important;
+  }
 }
 
 .seal {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 18px;
+  display: flex;
   align-items: center;
+  gap: 18px;
+  max-width: 440px;
   color: var(--ink-2);
+}
+
+.seal > :first-child {
+  flex: none;
+  rotate: 14deg;
 }
 
 .seal strong {
@@ -81,23 +129,40 @@
   font-weight: 600;
 }
 
-/* anotação na margem: sépia, em itálico, com um fio à esquerda */
+/* anotação na margem: sépia, em itálico, com uma seta curva apontando pra árvore */
 .margin {
-  padding-left: 14px;
-  border-left: 2px solid var(--sepia);
+  position: relative;
+  max-width: 400px;
+  padding-left: 58px;
   color: var(--sepia);
+  font-size: 17px;
   font-style: italic;
+}
+
+.arrow {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 52px;
+  height: 34px;
+  color: var(--sepia);
+}
+
+@media (max-width: 959px) {
+  .arrow {
+    rotate: 70deg;
+  }
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
 }
 
 .archive {
-  padding-top: 6px;
-  border-top: 1px solid var(--rule);
+  padding-top: 4px;
 }
 
 .archiveConfirm {

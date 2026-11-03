@@ -1,9 +1,12 @@
-// Estatísticas: sequência de dias, tempo de foco, honestidade e o que distrai.
+// Estatísticas (Diário de campo), soltas: os números em tamanhos diferentes (o principal enorme),
+// uma onda e os gráficos sem caixa nem grade de fundo. Sequência de dias, tempo de foco,
+// honestidade e o que distrai.
 // Todos os números vêm das views do banco (supabase/migrations/..._estatisticas.sql).
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { fadeUp, stagger } from '../../lib/motion'
 import { ButtonLink } from '../../components/Button'
+import { Wave } from '../../components/organic/Wave'
 import { useProfile } from '../account/queries'
 import { DISTRACTION_OPTIONS } from '../focus/labels'
 import { useGardens } from '../gardens/queries'
@@ -69,11 +72,7 @@ export function StatsScreen() {
   return (
     <motion.div className={styles.page} variants={stagger(0.08)} initial="hidden" animate="show">
       <motion.header className={styles.header} variants={fadeUp}>
-        <p className="kicker">Diário de campo</p>
-        <h1>
-          Seu <em>ritmo</em>
-        </h1>
-        <p>Só conta o que o servidor validou. Sessão perdida ou inválida não entra no tempo de foco.</p>
+        <h1>Diário de campo</h1>
       </motion.header>
 
       {loading ? (
@@ -84,7 +83,7 @@ export function StatsScreen() {
         <motion.section className={styles.empty} variants={fadeUp}>
           <h2>Ainda não tem nada pra medir</h2>
           <p>Termine a primeira sessão de foco e os números aparecem aqui.</p>
-          <ButtonLink to="/">Ir pro índice</ButtonLink>
+          <ButtonLink to="/">Ir pro início</ButtonLink>
         </motion.section>
       ) : (
         <>
@@ -112,6 +111,8 @@ export function StatsScreen() {
               detail="vezes que você admitiu não ter focado"
             />
           </motion.section>
+
+          <Wave />
 
           <motion.section className={styles.card} variants={fadeUp}>
             <h2>Minutos de foco por dia</h2>

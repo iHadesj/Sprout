@@ -1,37 +1,34 @@
-// Página principal do caderno, de cima pra baixo:
-// - registro do dia (data, foco de hoje, sequência e a semana em carimbos);
-// - prancha em destaque: o último jardim aberto, com a ilha 3D e o "Focar agora";
-// - índice: um jardim por área da vida, cada um uma "prancha" numerada.
-// Sem jardins, mostra a página de rosto com as instruções de uso.
+// Página principal, solta (sem blocos nem grade):
+// - no centro, a ilha do jardim escolhido, com hoje e sequência em pedrinhas encostadas nela,
+//   os jardins num arco e o "Começar foco" (um clique);
+// - depois de uma onda, duas correntes de larguras diferentes: seus jardins e o mural.
+// Presentes de amigos aparecem numa frase solta em cima e tocam na ilha.
+// Sem jardins, mostra a página de rosto pra criar o primeiro.
 import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
-import { PlusIcon } from '../../components/icons/plus'
 import { Link, useNavigate } from 'react-router'
+import { PlusIcon } from '../../components/icons/plus'
 import { Button } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
-import type { Plant } from '../../lib/api'
+import { Blob } from '../../components/organic/Blob'
+import { Wave } from '../../components/organic/Wave'
+import type { Garden, Plant } from '../../lib/api'
 import { fadeUp, stagger } from '../../lib/motion'
 import { toast } from '../../lib/toast'
 import { useNow } from '../../lib/useNow'
-import { formatMinutes, honestySeal, isNeglected } from '../stats/insights'
-import { useGardenStats } from '../stats/queries'
-import { FeaturedGarden } from './FeaturedGarden'
-import { biomeOf } from './gardenOptions'
-import { GardenForm } from './GardenForm'
-import { IslandIcon } from './IslandIcon'
-import { lastGardenId } from './lastGarden'
-import { speciesName, STAGE_LABEL, stageOf, summarizePlants } from './plants'
-import { useCreateGarden, useGardens, usePlants } from './queries'
+import { useGardenFlowers } from '../friends/queries'
+import { Mural } from '../friends/Mural'
 import { GiftNote } from '../friends/ReceivedGifts'
 import { useReceivedGifts } from '../friends/useReceivedGifts'
-import { TodayRecord } from './TodayRecord'
+import { honestySeal, isNeglected } from '../stats/insights'
+import { useGardenStats } from '../stats/queries'
+import { FocusLauncher } from './FocusLauncher'
+import { GardenForm } from './GardenForm'
+import { GardenList, StreakPebble, TodayPebble } from './HomeBlocks'
+import { IslandIcon } from './IslandIcon'
+import { lastGardenId, rememberGarden } from './lastGarden'
+import { useCreateGarden, useGardens, usePlants } from './queries'
 import styles from './GardensScreen.module.css'
-
-const STEPS = [
-  ['Plante', 'Comece um foco (25 min, por padrão). Não tem pausa: só dá pra desistir.'],
-  ['Faça', 'Pode trabalhar em outros apps; só não feche a aba. Desistir mata a árvore da vez.'],
-  ['Conte a verdade', 'No fim, diga se focou de verdade. Umas 5 sessões honestas fazem uma árvore adulta.'],
-]
 
 export function GardensScreen() {
   const gardens = useGardens()
@@ -42,6 +39,7 @@ export function GardensScreen() {
   const navigate = useNavigate()
   const received = useReceivedGifts()
   const [creating, setCreating] = useState(false)
+  const [picked, setPicked] = useState<string | null>(null)
 
   const plantsByGarden = useMemo(() => {
     const map = new Map<string, Plant[]>()
@@ -49,20 +47,25 @@ export function GardensScreen() {
     return map
   }, [plants.data])
 
-  const empty = gardens.data?.length === 0
-  const neglectedOf = (garden: { id: string; created_at: string }) =>
-    stats.isSuccess && isNeglected(stats.data.find((s) => s.garden_id === garden.id)?.last_completed_at ?? null, garden.created_at, now)
+  const statsOf = (id: string) => stats.data?.find((s) => s.garden_id === id) ?? null
+  const neglectedOf = (garden: Garden) => stats.isSuccess && isNeglected(statsOf(garden.id)?.last_completed_at ?? null, garden.created_at, now)
 
-  // destaque: o último jardim aberto; se não houver, o da sessão concluída mais recente
-  const featured = useMemo(() => {
+  // jardim do bloco grande: o escolhido agora, senão o último aberto, senão o da sessão mais recente
+  const selected = useMemo(() => {
     const list = gardens.data ?? []
     if (list.length === 0) return null
-    const remembered = list.find((g) => g.id === lastGardenId())
-    if (remembered) return { garden: remembered, remembered: true }
+    const byId = (id: string | null) => list.find((g) => g.id === id)
     const last = (id: string) => Date.parse(stats.data?.find((s) => s.garden_id === id)?.last_completed_at ?? '') || 0
-    const recent = [...list].sort((a, b) => last(b.id) - last(a.id))[0]
-    return { garden: recent, remembered: false }
-  }, [gardens.data, stats.data])
+    return byId(picked) ?? byId(lastGardenId()) ?? [...list].sort((a, b) => last(b.id) - last(a.id))[0]
+  }, [gardens.data, stats.data, picked])
+  const flowers = useGardenFlowers(selected?.id ?? null)
+
+  const select = (id: string) => {
+    setPicked(id)
+    rememberGarden(id)
+  }
+
+  const empty = gardens.data?.length === 0
 
   return (
     <motion.div className={styles.page} variants={stagger(0.05)} initial="hidden" animate="show">
@@ -76,106 +79,51 @@ export function GardensScreen() {
       {empty && (
         <motion.section className={styles.cover} variants={fadeUp}>
           <div className={styles.coverArt}>
+            <Blob className={styles.coverBlob} />
             <IslandIcon color="#f08fb0" biome="campo" />
           </div>
-          <div className={styles.coverText}>
-            <p className="kicker">Página de rosto</p>
-            <h1>Comece pelo primeiro jardim</h1>
-            <p className={styles.lead}>
-              Este caderno guarda um jardim pra cada área da vida, como faculdade, treino ou inglês. Cada foco honesto faz uma
-              árvore crescer; cada desistência fica registrada também.
-            </p>
-            <p className="kicker">Instruções de uso</p>
-            <ol className={styles.steps}>
-              {STEPS.map(([title, text], i) => (
-                <li key={title}>
-                  <span className="mono">{String(i + 1).padStart(2, '0')}</span>
-                  <span>
-                    <strong>{title}.</strong> {text}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <Button size="lg" icon={<PlusIcon size={18} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
-              Criar jardim
-            </Button>
-          </div>
+          <h1>Plante o primeiro jardim</h1>
+          <p className={styles.lead}>Um jardim pra cada área da vida. Cada foco honesto faz uma árvore crescer.</p>
+          <Button size="lg" icon={<PlusIcon size={18} />} onClick={() => setCreating(true)}>
+            Criar jardim
+          </Button>
         </motion.section>
       )}
 
-      {!!gardens.data?.length && (
+      {!!gardens.data?.length && selected && (
         <>
-          <TodayRecord />
-
-          {received.lines.length > 0 && <GiftNote lines={received.lines} onReplay={received.replay} />}
-
-          {featured && (
-            <FeaturedGarden
-              garden={featured.garden}
-              number={gardens.data.indexOf(featured.garden) + 1}
-              plants={plantsByGarden.get(featured.garden.id) ?? []}
-              stats={stats.data?.find((s) => s.garden_id === featured.garden.id) ?? null}
-              neglected={neglectedOf(featured.garden)}
-              remembered={featured.remembered}
-              gifts={received.show}
-            />
+          {(received.lines.length > 0 || received.answered.length > 0) && (
+            <GiftNote lines={received.lines} answered={received.answered} onReplay={received.replay} />
           )}
 
-          <motion.header className={styles.header} variants={fadeUp}>
-            <h2>Índice</h2>
-            <p className={styles.lead}>Um jardim por área da vida. Abra uma prancha pra cuidar dela.</p>
-          </motion.header>
+          <FocusLauncher
+            gardens={gardens.data}
+            garden={selected}
+            plants={plantsByGarden.get(selected.id) ?? []}
+            neglected={neglectedOf(selected)}
+            seal={honestySeal(statsOf(selected.id)?.honest_nos ?? 0)}
+            onSelect={select}
+            gifts={received.show}
+            flowers={flowers.data}
+            today={<TodayPebble />}
+            streak={<StreakPebble />}
+          />
 
-          <ol className={styles.index}>
-            {gardens.data.map((garden, i) => {
-              const list = plantsByGarden.get(garden.id) ?? []
-              const { growing, grown, dead } = summarizePlants(list)
-              const gardenStats = stats.data?.find((s) => s.garden_id === garden.id)
-              const neglected = neglectedOf(garden)
-              const seal = honestySeal(gardenStats?.honest_nos ?? 0)
-              return (
-                <motion.li key={garden.id} variants={fadeUp}>
-                  <Link to={`/jardim/${garden.id}`} className={styles.entry}>
-                    <span className={styles.art}>
-                      <IslandIcon color={garden.color} biome={biomeOf(garden.biome)} empty={!growing && grown === 0} />
-                    </span>
-                    <span className={styles.entryMain}>
-                      <span className="kicker">Prancha nº {i + 1}</span>
-                      <span className={styles.name}>
-                        <span className={styles.dot} style={{ background: garden.color }} aria-hidden="true" />
-                        {garden.name}
-                      </span>
-                      <span className={styles.detail}>
-                        {growing ? (
-                          <>
-                            Da vez: <em>{speciesName(growing)}</em> · {STAGE_LABEL[stageOf(growing.growth)]} ·{' '}
-                            <span className="mono">{growing.growth} de 10</span>
-                          </>
-                        ) : (
-                          'Sem árvore crescendo agora'
-                        )}
-                        {neglected && <span className={styles.note}> · folhas amarelando</span>}
-                        {seal && <span className={styles.note}> · {seal.label}</span>}
-                      </span>
-                    </span>
-                    <span className={styles.leader} aria-hidden="true" />
-                    <span className={styles.count}>
-                      <span className="mono">{grown + dead}</span>
-                      <span className={styles.countLabel}>
-                        {grown} adultas · {dead} secas · {formatMinutes(gardenStats?.minutes ?? 0)}
-                      </span>
-                    </span>
-                  </Link>
-                </motion.li>
-              )
-            })}
-          </ol>
+          <Wave className={styles.wave} />
 
-          <motion.div variants={fadeUp}>
-            <Button variant="secondary" icon={<PlusIcon size={17} strokeWidth={1.6} />} onClick={() => setCreating(true)}>
-              Novo jardim
-            </Button>
-          </motion.div>
+          <div className={styles.streams}>
+            <motion.section className={styles.gardensCol} variants={stagger(0.06)} aria-labelledby="seus-jardins">
+              <h2 id="seus-jardins">Seus jardins</h2>
+              <GardenList gardens={gardens.data} plantsByGarden={plantsByGarden} isNeglected={neglectedOf} onCreate={() => setCreating(true)} />
+            </motion.section>
+            <motion.section className={styles.muralCol} variants={fadeUp} aria-labelledby="mural">
+              <h2 id="mural">Mural</h2>
+              <Mural limit={4} emptyText="Quando você ou um amigo deixar uma árvore adulta, aparece aqui." />
+              <Link to="/amigos" className={styles.more}>
+                Ver amigos e o quadro da semana
+              </Link>
+            </motion.section>
+          </div>
         </>
       )}
 

@@ -1,5 +1,5 @@
-// Árvores low poly geradas por código, sem modelo baixado. Três espécies e um formato
-// pra cada valor de growth:
+// Árvores low poly geradas por código, sem modelo baixado. Três espécies (e as primas de
+// neve: abeto, bétula e sorveira, com neve nas copas) e um formato pra cada valor de growth:
 //   0 semente meio enterrada · 1-3 broto · 4-6 muda · 7-9 árvore jovem
 //   10 adulta, com frutas, flores ou bolinhas na cor do jardim
 //
@@ -11,7 +11,7 @@
 // - frutas e flores torneadas (superfície de revolução), não bolinhas genéricas.
 // A cor das folhas vai do escuro (base, parte de baixo da copa) ao claro (ponta, topo).
 import { BufferGeometry, Color, IcosahedronGeometry, SRGBColorSpace, Vector3 } from 'three'
-import type { Species } from '../features/gardens/plants'
+import type { Look } from '../features/gardens/plants'
 import { MeshBuilder } from './meshBuilder'
 import { clamp, hashString, lerp, rng } from './random'
 
@@ -24,12 +24,20 @@ export const UP = new Vector3(0, 1, 0)
 const hex = (...colors: string[]) => colors.map((c) => new Color(c))
 
 /** Rampas de cor, do mais escuro (sombra) ao mais claro (ponta ao sol). */
-export const LEAVES: Record<Species, Color[]> = {
+export const LEAVES: Record<Look, Color[]> = {
   pinheiro: hex('#173f36', '#24604c', '#3f8a63', '#86bf83'),
   macieira: hex('#26502c', '#3f7f3a', '#71ad4f', '#c3df86'),
   cerejeira: hex('#2f5a33', '#4f8b45', '#86b85d', '#d2e59a'),
+  // neve: abeto verde-azulado escuro, bétula dourada de inverno, sorveira verde fechado
+  abeto: hex('#112c2b', '#1a4643', '#2b6560', '#6d9d97'),
+  betula: hex('#6b5a1e', '#a08a2c', '#d1b24a', '#f0dc8a'),
+  sorveira: hex('#1b3a28', '#2a5838', '#4a7c46', '#8db070'),
 }
 const BARK = hex('#4a3122', '#6f4a31', '#9a6c47')
+/** casca da bétula: branca com riscos escuros */
+const BIRCH_BARK = hex('#2f2a25', '#d9d3c7', '#f1ede4')
+/** neve nas copas: azulada na sombra, branca no alto */
+export const SNOW = hex('#b9cbdc', '#e3ecf4', '#ffffff')
 const SOIL = hex('#6b4c33', '#93704d')
 const SEED = hex('#7d5530', '#b88752', '#dcb27a')
 export const STEM = hex('#2f5a33', '#6fa253')
@@ -37,31 +45,34 @@ export const STEM = hex('#2f5a33', '#6fa253')
 /** Geometrias prontas, reaproveitadas por todas as árvores iguais (instancing). */
 const cache = new Map<string, BufferGeometry>()
 
-export function treeGeometry(species: Species, growth: number, color: string, detail: Detail): BufferGeometry {
+export function treeGeometry(look: Look, growth: number, color: string, detail: Detail): BufferGeometry {
   const g = clamp(Math.round(growth), 0, 10)
-  const key = `${species}|${g}|${color}|${detail}`
+  const key = `${look}|${g}|${color}|${detail}`
   let geometry = cache.get(key)
   if (!geometry) {
-    geometry = buildTree(species, g, color, detail)
+    geometry = buildTree(look, g, color, detail)
     cache.set(key, geometry)
   }
   return geometry
 }
 
-function buildTree(species: Species, growth: number, color: string, detail: Detail): BufferGeometry {
-  const random = rng(hashString(`${species}:${growth}`))
+const isConifer = (look: Look) => look === 'pinheiro' || look === 'abeto'
+const isSnowy = (look: Look) => look === 'abeto' || look === 'betula' || look === 'sorveira'
+
+function buildTree(look: Look, growth: number, color: string, detail: Detail): BufferGeometry {
+  const random = rng(hashString(`${look}:${growth}`))
   const b = new MeshBuilder(random, 0.1)
   const hi = detail === 'high'
 
   mound(b, 0.09 + growth * 0.006, random)
   if (growth === 0) seed(b)
-  else if (growth <= 3) sprout(b, species, growth, hi, random)
+  else if (growth <= 3) sprout(b, look, growth, hi, random)
   else {
     // t vai de 0 (muda recém-feita, growth 4) a 1 (adulta, growth 10)
     const t = (growth - 4) / 6
     const accent = accentPalette(color)
-    if (species === 'pinheiro') pineTree(b, growth, t, accent, hi, random)
-    else roundTree(b, species, growth, t, accent, hi, random)
+    if (isConifer(look)) pineTree(b, look, growth, t, accent, hi, random)
+    else roundTree(b, look, growth, t, accent, hi, random)
   }
   const geometry = b.build()
   geometry.computeBoundingSphere()
@@ -75,19 +86,27 @@ interface Cluster {
   radius: number
 }
 
-/** Macieira e cerejeira: tronco curvo, galhos e uma copa de folhas por galho. */
-function roundTree(b: MeshBuilder, species: Species, growth: number, t: number, accent: Accent, hi: boolean, random: () => number) {
-  const cherry = species === 'cerejeira'
+/**
+ * Copas redondas: macieira e cerejeira e, na neve, bétula (fina, casca branca riscada, folhas
+ * douradas) e sorveira (verde fechado, cachinhos de frutinhas). Na neve, as copas ganham um
+ * montinho de neve em cima.
+ */
+function roundTree(b: MeshBuilder, look: Look, growth: number, t: number, accent: Accent, hi: boolean, random: () => number) {
+  const cherry = look === 'cerejeira'
+  const birch = look === 'betula'
+  const rowan = look === 'sorveira'
   const adult = growth >= 10
-  const height = lerp(0.26, 0.5, t) * (cherry ? 0.88 : 1)
-  const r0 = lerp(0.03, 0.075, t)
-  const lean = new Vector3((random() - 0.5) * 0.1, 0, (random() - 0.5) * 0.1).multiplyScalar(cherry ? 1.8 : 1)
+  const height = lerp(0.26, 0.5, t) * (cherry ? 0.88 : birch ? 1.22 : 1)
+  const r0 = lerp(0.03, 0.075, t) * (birch ? 0.72 : 1)
+  const lean = new Vector3((random() - 0.5) * 0.1, 0, (random() - 0.5) * 0.1).multiplyScalar(cherry ? 1.8 : birch ? 0.6 : 1)
   const top = new Vector3(lean.x * 1.4, height, lean.z * 1.4)
-  tube(b, bezier(new Vector3(), new Vector3(-lean.x, height * 0.5, -lean.z), top, hi ? 6 : 3), (f) => trunkRadius(r0, f), hi ? 7 : 5, (f) => ramp(BARK, 0.2 + f * 0.8))
-  if (growth >= 7) roots(b, r0, hi, random)
+  // bétula: anéis claros e um risco escuro de vez em quando
+  const bark = birch ? (f: number) => (Math.floor(f * 11) % 4 === 1 ? BIRCH_BARK[0] : ramp(BIRCH_BARK.slice(1), 0.3 + f * 0.7)) : (f: number) => ramp(BARK, 0.2 + f * 0.8)
+  tube(b, bezier(new Vector3(), new Vector3(-lean.x, height * 0.5, -lean.z), top, birch ? (hi ? 10 : 5) : hi ? 6 : 3), (f) => trunkRadius(r0, f), hi ? 7 : 5, bark)
+  if (growth >= 7 && !birch) roots(b, r0, hi, random)
 
-  const R = lerp(0.19, 0.34, t)
-  const squash = cherry ? 0.8 : 1
+  const R = lerp(0.19, 0.34, t) * (birch ? 0.82 : 1)
+  const squash = cherry ? 0.8 : birch ? 1.12 : 1
   const clusters: Cluster[] = [{ center: top.clone().add(new Vector3(0, R * (cherry ? 0.35 : 0.5), 0)), radius: R }]
 
   // galhos saindo do alto do tronco, cada um com sua copa
@@ -99,25 +118,41 @@ function roundTree(b: MeshBuilder, species: Species, growth: number, t: number, 
     const start = new Vector3().lerpVectors(new Vector3(), top, 0.78)
     const end = top.clone().add(new Vector3(Math.cos(az) * out, R * (cherry ? 0.12 : 0.3), Math.sin(az) * out))
     const ctrl = start.clone().add(new Vector3(Math.cos(az) * out * 0.25, (end.y - start.y) * 0.9, Math.sin(az) * out * 0.25))
-    tube(b, bezier(start, ctrl, end, hi ? 4 : 2), (f) => r0 * 0.55 * (1 - f * 0.45), hi ? 5 : 4, (f) => ramp(BARK, 0.45 + f * 0.5))
+    tube(b, bezier(start, ctrl, end, hi ? 4 : 2), (f) => r0 * 0.55 * (1 - f * 0.45), hi ? 5 : 4, birch ? (f) => ramp(BIRCH_BARK.slice(1), 0.4 + f * 0.6) : (f) => ramp(BARK, 0.45 + f * 0.5))
     clusters.push({ center: end.clone().add(new Vector3(0, R * 0.22, 0)), radius: R * lerp(0.66, 0.78, random()) })
   }
-  if (adult && !cherry) clusters.push({ center: clusters[0].center.clone().add(new Vector3(R * 0.12, R * 0.62, -R * 0.1)), radius: R * 0.62 })
+  if (adult && !cherry && !birch) clusters.push({ center: clusters[0].center.clone().add(new Vector3(R * 0.12, R * 0.62, -R * 0.1)), radius: R * 0.62 })
 
   // a cerejeira adulta floresce inteira na cor do jardim; antes disso, folhas verdes
   const blossoming = cherry && adult
-  const colors = blossoming ? [accent.deep, accent.base, accent.tip, accent.petal] : LEAVES[species]
+  const colors = blossoming ? [accent.deep, accent.base, accent.tip, accent.petal] : LEAVES[look]
   const shape: LeafShape = blossoming
     ? { length: 0.46, width: 0.95, cup: 0.45, curl: -0.05 }
     : cherry
       ? { length: 0.5, width: 0.78, cup: 0.35, curl: -0.04 }
-      : { length: 0.52, width: 0.74, cup: 0.32, curl: -0.04 }
+      : birch
+        ? { length: 0.4, width: 0.72, cup: 0.3, curl: -0.02 }
+        : rowan
+          ? { length: 0.5, width: 0.5, cup: 0.4, curl: -0.06 }
+          : { length: 0.52, width: 0.74, cup: 0.32, curl: -0.04 }
   for (const [i, c] of clusters.entries()) {
     const count = Math.round(lerp(26, 60, t) * (i === 0 ? 1 : 0.7) * (hi ? 1 : 0.45))
-    canopy(b, c, squash, count, shape, colors, hi, rng(hashString(`${species}:${growth}:${i}`)))
+    canopy(b, c, squash, count, shape, colors, hi, rng(hashString(`${look}:${growth}:${i}`)))
+  }
+  // neve: um montinho branco em cima de cada copa (a metade de baixo fica escondida nas folhas)
+  if (isSnowy(look)) {
+    for (const c of clusters) snowCap(b, c.center.clone().add(new Vector3(0, c.radius * 0.5 * squash, 0)), c.radius * 0.66)
   }
 
-  if (cherry) {
+  if (birch) {
+    // amentilhos: cachinhos compridos pendurados, na cor do jardim
+    const catkins = adult ? 10 : growth >= 8 ? 4 : 0
+    onCanopy(clusters, hi ? catkins : Math.ceil(catkins / 2), squash, 1.0, random, (p) => catkin(b, p, adult ? 0.07 : 0.05, accent), -0.6, 0.2)
+  } else if (rowan) {
+    // cachos de frutinhas na cor do jardim
+    const bunches = adult ? 7 : growth >= 8 ? 3 : 0
+    onCanopy(clusters, hi ? bunches : Math.ceil(bunches / 2), squash, 1.0, random, (p) => berries(b, p, adult ? 0.026 : 0.02, accent, hi), -0.5, 0.45)
+  } else if (cherry) {
     // flores: na jovem, na cor do jardim sobre o verde; na adulta, quase brancas sobre a cor
     const flowers = adult ? 14 : growth >= 7 ? (growth - 6) * 4 : 0
     const petals = adult ? [accent.petal, new Color('#fffaf2')] : [accent.base, accent.tip]
@@ -128,8 +163,9 @@ function roundTree(b: MeshBuilder, species: Species, growth: number, t: number, 
   }
 }
 
-/** Pinheiro: tronco curto e andares de "saias" recortadas, cada um girado. */
-function pineTree(b: MeshBuilder, growth: number, t: number, accent: Accent, hi: boolean, random: () => number) {
+/** Pinheiro (e abeto, na neve): tronco curto e andares de "saias" recortadas, cada um girado. */
+function pineTree(b: MeshBuilder, look: Look, growth: number, t: number, accent: Accent, hi: boolean, random: () => number) {
+  const fir = look === 'abeto'
   const tiers = growth <= 5 ? 2 : growth <= 7 ? 3 : growth <= 9 ? 4 : 5
   const trunkHeight = lerp(0.1, 0.2, t)
   const R = lerp(0.24, 0.44, t)
@@ -138,7 +174,7 @@ function pineTree(b: MeshBuilder, growth: number, t: number, accent: Accent, hi:
   tube(b, bezier(new Vector3(), new Vector3(0.01, trunkHeight, 0), new Vector3(0, trunkHeight + H * 0.5, 0), hi ? 4 : 2), (f) => trunkRadius(r0, f), hi ? 6 : 5, (f) => ramp(BARK, 0.2 + f * 0.7))
   if (growth >= 7) roots(b, r0, hi, random)
 
-  const colors = LEAVES.pinheiro
+  const colors = LEAVES[look]
   const hems: Vector3[][] = []
   const turn = random() * TAU
   for (let i = 0; i < tiers; i++) {
@@ -147,6 +183,8 @@ function pineTree(b: MeshBuilder, growth: number, t: number, accent: Accent, hi:
     const y0 = trunkHeight + (i * H) / (tiers + 0.7)
     const h = (H / tiers) * 1.6
     hems.push(skirt(b, new Vector3(0, y0, 0), radius, h, hi ? 8 : 6, turn + i * GOLDEN, colors, 0.15 + k * 0.35))
+    // abeto: cada andar com uma capa de neve por cima (menor, mais alta: a barra verde aparece)
+    if (fir) skirt(b, new Vector3(0, y0 + h * 0.38, 0), radius * 0.8, h * 0.7, hi ? 8 : 6, turn + i * GOLDEN, SNOW, 0.35 + k * 0.4)
   }
 
   if (growth >= 10) {
@@ -161,15 +199,15 @@ function pineTree(b: MeshBuilder, growth: number, t: number, accent: Accent, hi:
 }
 
 /** Broto: caulezinho curvo com folhas gordinhas (no pinheiro, um tufo de agulhas). */
-function sprout(b: MeshBuilder, species: Species, growth: number, hi: boolean, random: () => number) {
+function sprout(b: MeshBuilder, look: Look, growth: number, hi: boolean, random: () => number) {
   const s = lerp(0.75, 1.2, (growth - 1) / 2)
   const height = 0.11 * s
   const top = new Vector3(0.008, height, 0.004)
   tube(b, bezier(new Vector3(), new Vector3(0.018, height * 0.5, -0.006), top, 3), (f) => lerp(0.014, 0.008, f), 5, (f) => ramp(STEM, f), 1)
   const az = random() * TAU
-  const colors = LEAVES[species]
+  const colors = LEAVES[look]
 
-  if (species === 'pinheiro') {
+  if (isConifer(look)) {
     const whorl = (center: Vector3, count: number, length: number, elevation: number, turn: number) => {
       for (let k = 0; k < count; k++) {
         const a = turn + (k / count) * TAU
@@ -403,6 +441,33 @@ export function gem(b: MeshBuilder, center: Vector3, radius: number, colors: Col
     b.triangle(v[0].clone(), v[1].clone(), v[2].clone(), ramp(colors, clamp(0.5 + h * 0.6, 0, 1)))
   }
   ico.dispose()
+}
+
+/** Montinho de neve: meia esfera achatada, branca em cima e azulada embaixo. */
+function snowCap(b: MeshBuilder, center: Vector3, radius: number) {
+  const ico = new IcosahedronGeometry(1, 1)
+  const pos = ico.getAttribute('position')
+  const v = [new Vector3(), new Vector3(), new Vector3()]
+  for (let i = 0; i < pos.count; i += 3) {
+    for (let k = 0; k < 3; k++) v[k].fromBufferAttribute(pos, i + k).multiply(new Vector3(radius, radius * 0.5, radius)).add(center)
+    const h = clamp(((v[0].y + v[1].y + v[2].y) / 3 - center.y) / (radius * 0.5), -1, 1)
+    b.triangle(v[0].clone(), v[1].clone(), v[2].clone(), ramp(SNOW, 0.5 + h * 0.5), undefined, undefined, 1)
+  }
+  ico.dispose()
+}
+
+/** Amentilho da bétula: um cachinho comprido pendurado, na cor do jardim. */
+function catkin(b: MeshBuilder, at: Vector3, length: number, accent: Accent) {
+  const end = at.clone().add(new Vector3(0.01, -length, 0.006))
+  tube(b, bezier(at, at.clone().add(new Vector3(0.008, -length * 0.5, 0)), end, 3), (f) => length * 0.16 * Math.sin(Math.PI * (0.2 + f * 0.8)), 5, (f) => ramp([accent.tip, accent.base, accent.deep], f))
+}
+
+/** Cacho da sorveira: frutinhas facetadas juntinhas, na cor do jardim. */
+function berries(b: MeshBuilder, at: Vector3, size: number, accent: Accent, hi: boolean) {
+  const offsets = hi
+    ? [new Vector3(0, 0, 0), new Vector3(1.4, -0.6, 0.3), new Vector3(-1.2, -0.7, 0.6), new Vector3(0.3, -1.3, -1), new Vector3(-0.4, 0.4, -1.2)]
+    : [new Vector3(0, 0, 0), new Vector3(1.3, -0.7, 0.3), new Vector3(-1.1, -0.8, 0.5)]
+  for (const o of offsets) gem(b, at.clone().addScaledVector(o, size), size, [accent.deep, accent.base, accent.tip])
 }
 
 /** Montinho de terra onde a árvore nasce. */

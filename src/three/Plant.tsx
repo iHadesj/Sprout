@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Detailed } from '@react-three/drei'
 import { Euler, Group, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three'
-import { speciesOf, stageOf, type Species } from '../features/gardens/plants'
+import { lookOf, stageOf, type Look } from '../features/gardens/plants'
 import type { Plant } from '../lib/api'
 import { createPlantMaterial, type FacetMaterial } from './facetMaterial'
 import type { IslandShape } from './islandGeometry'
@@ -22,12 +22,14 @@ const TREE_SCALE = 1.2
 interface GrowingPlantProps {
   plant: Plant
   color: string
+  /** bioma do jardim: na neve a árvore aparece como a prima de neve dela */
+  biome: string
   motion: boolean
   groundY: number
 }
 
-export function GrowingPlant({ plant, color, motion, groundY }: GrowingPlantProps) {
-  const species = speciesOf(plant)
+export function GrowingPlant({ plant, color, biome, motion, groundY }: GrowingPlantProps) {
+  const species = lookOf(plant, biome)
   const geometry = treeGeometry(species, plant.growth, color, 'high')
   const material = useMemo(() => createPlantMaterial(), [])
   useEffect(() => () => material.dispose(), [material])
@@ -75,7 +77,7 @@ export function GrowingPlant({ plant, color, motion, groundY }: GrowingPlantProp
 
 interface PlantGroup {
   key: string
-  species: Species
+  species: Look
   growth: number
   dead: boolean
   plants: Plant[]
@@ -119,25 +121,26 @@ function PlantInstances({ group, color, detail, material, heightAt }: { group: P
 interface PlantFieldProps {
   plants: Plant[]
   color: string
+  biome: string
   lodDistance: number
   heightAt: IslandShape['heightAt']
   materials: { plant: FacetMaterial; dead: FacetMaterial }
 }
 
-export function PlantField({ plants, color, lodDistance, heightAt, materials }: PlantFieldProps) {
+export function PlantField({ plants, color, biome, lodDistance, heightAt, materials }: PlantFieldProps) {
   const groups = useMemo(() => {
     const map = new Map<string, PlantGroup>()
     for (const plant of plants) {
       if (plant.status === 'growing') continue
       const dead = plant.status === 'dead'
-      const species = speciesOf(plant)
+      const species = lookOf(plant, biome)
       const key = `${species}:${plant.growth}:${dead ? 'dead' : 'grown'}`
       const group = map.get(key) ?? { key, species, growth: plant.growth, dead, plants: [] }
       group.plants.push(plant)
       map.set(key, group)
     }
     return [...map.values()]
-  }, [plants])
+  }, [plants, biome])
 
   if (groups.length === 0) return null
 

@@ -1,5 +1,5 @@
-// Etiqueta de museu: uma linha pequena em mono ("ESPÉCIME Nº 12") e o nome em serifada
-// ("Pinheiro · muda · 4 de 10"). `children` vai embaixo (régua de crescimento etc.).
+// Etiqueta solta (sem caixa): uma linha pequena em mono ("ÁRVORE DA VEZ") e o nome em
+// serifada ("Pinheiro · muda · 4 de 10"). `children` vai embaixo (régua de crescimento etc.).
 import type { ReactNode } from 'react'
 import styles from './Label.module.css'
 

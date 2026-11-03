@@ -1,0 +1,88 @@
+/* mural solto: sem fios entre os itens; cada conquista é uma frase e o aplauso ao lado */
+.list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 0;
+}
+
+.text {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.when {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.count {
+  flex: none;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.empty {
+  color: var(--ink-3);
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* aplaudir: cápsula com o ícone e a contagem; depois de aplaudir fica verde */
+.clap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--paper-card);
+  box-shadow: 0 0 0 1px var(--rule);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.clap:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.clap[data-done] {
+  background: var(--herb-soft);
+  box-shadow: none;
+  color: var(--herb);
+  cursor: default;
+}
+
+.spark {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--stamp);
+  pointer-events: none;
+}
+
+.spark[data-i='1'] {
+  background: #e2a93a;
+}
+
+.spark[data-i='2'] {
+  background: var(--herb);
+}

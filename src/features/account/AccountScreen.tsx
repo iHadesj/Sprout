@@ -1,5 +1,6 @@
-// Ficha do pesquisador (conta): nome de usuário (é como os amigos te acham), fuso horário
-// (define o "hoje" do limite diário), desde quando usa o caderno e sair.
+// Ficha (conta): o @ grande, os registros soltos (e-mail, desde quando), o perfil (nome de
+// usuário, que é como os amigos te acham, e fuso, que define o "hoje" do limite diário) e,
+// discreto no fim, sair.
 import { useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,7 +26,6 @@ export function AccountScreen() {
   return (
     <motion.div className={styles.page} variants={stagger(0.08)} initial="hidden" animate="show">
       <motion.header className={styles.header} variants={fadeUp}>
-        <p className="kicker">Ficha do pesquisador</p>
         <h1>{profile.data?.username ? `@${profile.data.username}` : 'Sua ficha'}</h1>
       </motion.header>
 
@@ -48,7 +48,7 @@ export function AccountScreen() {
 
       <motion.div variants={fadeUp}>
         <Button
-          variant="secondary"
+          variant="quiet"
           icon={<LogoutIcon size={16} strokeWidth={1.7} />}
           onClick={async () => {
             useFocusStore.getState().reset()
@@ -78,7 +78,13 @@ function ProfileForm(props: { userId: string; username: string | null; timezone:
       await queryClient.invalidateQueries({ queryKey: ['stats'] }) // o "hoje" depende do fuso
     },
     onError: (error) =>
-      toast.error(error.message.includes('profiles_username_key') ? 'Esse nome de usuário já existe.' : error.message),
+      toast.error(
+        error.message.includes('profiles_username_key')
+          ? 'Esse nome de usuário já existe.'
+          : error.message.includes('username_format')
+            ? `Nome de usuário inválido. ${USERNAME_HINT}`
+            : error.message,
+      ),
   })
 
   function submit(event: FormEvent) {
@@ -88,9 +94,7 @@ function ProfileForm(props: { userId: string; username: string | null; timezone:
 
   return (
     <motion.section className={styles.section} variants={fadeUp} aria-labelledby="perfil">
-      <h2 id="perfil" className="kicker">
-        Dados da ficha
-      </h2>
+      <h2 id="perfil">Perfil</h2>
       <form className={styles.form} onSubmit={submit}>
         <label>
           <span>Nome de usuário</span>
@@ -112,7 +116,6 @@ function ProfileForm(props: { userId: string; username: string | null; timezone:
               </option>
             ))}
           </select>
-          <small>Define quando começa o seu dia pro limite de 10 sessões.</small>
         </label>
         <div>
           <Button type="submit" busy={save.isPending}>

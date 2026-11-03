@@ -1,0 +1,17 @@
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--avatar);
+  height: var(--avatar);
+  border-radius: var(--pebble);
+  box-shadow: inset 0 0 0 1px rgba(42, 40, 35, 0.18);
+  color: var(--ink);
+  font-size: calc(var(--avatar) * 0.44);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.avatar[data-me] {
+  color: var(--herb-ink);
+}

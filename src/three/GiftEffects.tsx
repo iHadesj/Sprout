@@ -1,9 +1,11 @@
-// Presentes de amigos na cena: o regador que chega, inclina, rega a ilha e vai embora, e os
-// corações facetados que sobem da ilha (poucos e grandes, ou uma nuvem quando são muitos).
+// Presentes de amigos na cena: o regador que chega, inclina, rega a ilha e vai embora, os
+// corações facetados que sobem da ilha (poucos e grandes, ou uma nuvem quando são muitos), os
+// fogos dos aplausos e a sementinha do "bora focar" (os dois últimos em CheerEffects).
 // Só enfeite: nada aqui mexe nas plantas. Quem chama troca o `id` pra tocar de novo.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { DynamicDrawUsage, Group, InstancedMesh, Matrix4, Quaternion, Vector3, Euler } from 'three'
+import { Fireworks, SeedCall } from './CheerEffects'
 import { createFacetMaterial } from './facetMaterial'
 import { dropGeometry, SPOUT_TIP, wateringCanGeometry } from './gifts'
 import { heartGeometry } from './heart'
@@ -14,6 +16,10 @@ export interface GiftShow {
   id: number
   water: boolean
   hearts: number
+  /** aplausos recebidos: viram fogos de artifício */
+  claps?: number
+  /** alguém chamou pra focar */
+  seed?: boolean
 }
 
 /** No máximo isto de corações na tela: 999 vira uma nuvem densa sem travar o celular. */
@@ -30,6 +36,8 @@ export function GiftEffects({ show, radius, motion }: { show: GiftShow; radius: 
     <group name="gift-effects">
       {show.water && <WateringCan key={`w${show.id}`} radius={radius} motion={motion} />}
       {show.hearts > 0 && <HeartCloud key={`h${show.id}`} count={show.hearts} radius={radius} motion={motion} delay={show.water ? 3.2 : 0} />}
+      {!!show.claps && <Fireworks key={`c${show.id}`} count={show.claps} radius={radius} delay={(show.water ? 2 : 0) + (show.hearts ? 1.5 : 0)} />}
+      {show.seed && <SeedCall key={`s${show.id}`} delay={show.water || show.hearts ? 1 : 0} />}
     </group>
   )
 }

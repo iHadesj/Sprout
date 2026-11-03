@@ -1,5 +1,8 @@
-// Amigos: o quadro da semana (ranking por minutos de foco), pedidos, adicionar pelo nome,
-// o link de convite e a lista de amigos (cada um com "visitar jardim").
+// Amigos, sem tabela nem caixas:
+// - o quadro da semana: uma lista curva, cada pessoa com avatar e um traço do tamanho dos minutos;
+// - pedidos e seus amigos: um cacho de avatares (pedrinhas coloridas) com nome, minutos da
+//   semana e "Visitar jardim";
+// - depois de uma onda: adicionar pelo nome, o link de convite em cápsula e as conquistas.
 // Os números vêm do servidor (friend_ranking); aqui só se desenha.
 import { useState, type FormEvent } from 'react'
 import { motion } from 'motion/react'
@@ -9,11 +12,15 @@ import { UserPlusIcon } from '../../components/icons/user-plus'
 import { Link } from 'react-router'
 import { Button, ButtonLink } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
+import { bulge } from '../../components/organic/curve'
+import { Wave } from '../../components/organic/Wave'
 import type { FriendEntry } from '../../lib/api'
-import { fadeUp, stagger } from '../../lib/motion'
+import { fadeUp, hoverTilt, popIn, spring, stagger } from '../../lib/motion'
 import { toast } from '../../lib/toast'
 import { useProfile } from '../account/queries'
 import { formatMinutes } from '../stats/insights'
+import { Avatar } from './Avatar'
+import { Mural } from './Mural'
 import { useFriends, useRanking, useRemoveFriend, useRespondFriendRequest, useSendFriendRequest } from './queries'
 import styles from './FriendsScreen.module.css'
 
@@ -33,7 +40,9 @@ export function FriendsScreen() {
   const incoming = list.filter((f) => f.direction === 'incoming')
   const outgoing = list.filter((f) => f.direction === 'outgoing')
   const accepted = list.filter((f) => f.direction === 'friend')
-  const top = Math.max(1, ...(ranking.data ?? []).map((r) => r.minutes))
+  const rows = ranking.data ?? []
+  const top = Math.max(1, ...rows.map((r) => r.minutes))
+  const weekOf = (id: string) => rows.find((r) => r.user_id === id)?.minutes ?? 0
   const inviteUrl = profile.data ? `${window.location.origin}/amigo/${profile.data.invite_code}` : ''
 
   const submit = (event: FormEvent) => {
@@ -65,63 +74,67 @@ export function FriendsScreen() {
   }
 
   return (
-    <motion.div className={styles.page} variants={stagger(0.05)} initial="hidden" animate="show">
+    <motion.div className={styles.page} variants={stagger(0.06)} initial="hidden" animate="show">
       <motion.header className={styles.header} variants={fadeUp}>
-        <p className="kicker">Amigos</p>
-        <h1>Quadro da semana</h1>
-        <p className={styles.lead}>Minutos de foco desde segunda. Conta só sessão concluída, até 10 por dia.</p>
+        <h1>Amigos</h1>
       </motion.header>
 
-      <motion.ol className={styles.ranking} variants={fadeUp} aria-label="Ranking da semana">
-        {(ranking.data ?? []).map((row, i) => {
-          const content = (
-            <>
-              <span className={`mono ${styles.position}`}>{String(i + 1).padStart(2, '0')}</span>
-              <span className={styles.who}>
-                {at(row.username)}
-                {row.is_me && <span className={styles.me}>você</span>}
-              </span>
-              <span className={styles.bar} aria-hidden="true">
-                <motion.span
-                  className={styles.barFill}
-                  data-me={row.is_me || undefined}
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: row.minutes / top }}
-                  transition={{ delay: 0.2 + i * 0.05, duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
-                />
-              </span>
-              <span className={`mono ${styles.minutes}`}>{formatMinutes(row.minutes)}</span>
-            </>
-          )
-          return (
-            <li key={row.user_id}>
-              {row.is_me ? (
-                <div className={styles.row}>{content}</div>
-              ) : (
-                <Link to={`/amigos/${row.user_id}`} className={styles.row}>
-                  {content}
-                </Link>
-              )}
-            </li>
-          )
-        })}
-      </motion.ol>
-      {ranking.isSuccess && ranking.data.length <= 1 && (
-        <motion.p className={styles.empty} variants={fadeUp}>
-          Por enquanto o quadro é só seu. Mande o link de convite pra alguém focar junto.
-        </motion.p>
-      )}
+      <motion.section className={styles.section} variants={fadeUp} aria-labelledby="semana">
+        <div className={styles.sectionHead}>
+          <h2 id="semana">Esta semana</h2>
+          <p className={styles.lead}>minutos de foco desde segunda</p>
+        </div>
+        <ol className={styles.ranking} aria-label="Ranking da semana">
+          {rows.map((row, i) => {
+            const content = (
+              <>
+                <span className={`mono ${styles.position}`}>{i + 1}</span>
+                <Avatar name={row.username} size={i === 0 ? 52 : 42} me={row.is_me} />
+                <span className={styles.who}>
+                  {at(row.username)}
+                  {row.is_me && <span className={styles.me}>você</span>}
+                </span>
+                <span className={styles.bar} aria-hidden="true">
+                  <motion.span
+                    className={styles.barFill}
+                    data-me={row.is_me || undefined}
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: Math.max(0.03, row.minutes / top) }}
+                    transition={{ ...spring.soft, delay: 0.25 + i * 0.07 }}
+                  />
+                </span>
+                <span className={`mono ${styles.minutes}`}>{formatMinutes(row.minutes)}</span>
+              </>
+            )
+            // a lista faz uma curva: o recuo cresce até o meio e volta
+            const indent = { marginInlineStart: bulge(i, rows.length, 48) }
+            return (
+              <li key={row.user_id} style={indent}>
+                {row.is_me ? (
+                  <div className={styles.row}>{content}</div>
+                ) : (
+                  <Link to={`/amigos/${row.user_id}`} className={styles.row}>
+                    {content}
+                  </Link>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+        {ranking.isSuccess && rows.length <= 1 && (
+          <p className={styles.empty}>Por enquanto o quadro é só seu. Mande o link de convite pra alguém focar junto.</p>
+        )}
+      </motion.section>
 
       {incoming.length > 0 && (
         <motion.section className={styles.section} variants={fadeUp} aria-labelledby="pedidos">
-          <h2 id="pedidos" className="kicker">
-            Pedidos de amizade
-          </h2>
-          <ul className={styles.people}>
-            {incoming.map((f) => (
-              <li key={f.user_id} className={styles.person}>
+          <h2 id="pedidos">Pedidos de amizade</h2>
+          <motion.ul className={styles.people} variants={stagger(0.07)}>
+            {incoming.map((f, i) => (
+              <motion.li key={f.user_id} className={styles.person} variants={popIn} data-i={i % 3}>
+                <Avatar name={f.username} size={64} />
                 <span className={styles.name}>{at(f.username)}</span>
-                <span className={styles.actions}>
+                <span className={styles.personActions}>
                   <Button size="sm" busy={respond.isPending} onClick={() => respond.mutate({ userId: f.user_id, accept: true })}>
                     Aceitar
                   </Button>
@@ -129,17 +142,45 @@ export function FriendsScreen() {
                     Recusar
                   </Button>
                 </span>
-              </li>
+              </motion.li>
             ))}
-          </ul>
+          </motion.ul>
         </motion.section>
       )}
 
+      {accepted.length > 0 && (
+        <motion.section className={styles.section} variants={fadeUp} aria-labelledby="lista">
+          <h2 id="lista">Seus amigos</h2>
+          <motion.ul className={styles.people} variants={stagger(0.07)}>
+            {accepted.map((f, i) => (
+              <motion.li key={f.user_id} className={styles.person} variants={popIn} data-i={i % 3}>
+                {/* o avatar também abre o jardim (fora do Tab: o link de texto embaixo é o mesmo) */}
+                <motion.span whileHover={hoverTilt(i)} className={styles.avatarLink}>
+                  <Link to={`/amigos/${f.user_id}`} tabIndex={-1} aria-hidden="true">
+                    <Avatar name={f.username} size={76} />
+                  </Link>
+                </motion.span>
+                <span className={styles.name}>{at(f.username)}</span>
+                <span className={`mono ${styles.week}`}>{formatMinutes(weekOf(f.user_id))} esta semana</span>
+                <span className={styles.personActions}>
+                  <ButtonLink to={`/amigos/${f.user_id}`} size="sm" variant="secondary">
+                    Visitar jardim
+                  </ButtonLink>
+                  <button type="button" className={styles.linkButton} onClick={() => setRemoving(f)}>
+                    desfazer
+                  </button>
+                </span>
+              </motion.li>
+            ))}
+          </motion.ul>
+        </motion.section>
+      )}
+
+      <Wave className={styles.wave} variant={1} />
+
       <div className={styles.columns}>
-        <motion.section className={styles.section} variants={fadeUp} aria-labelledby="adicionar">
-          <h2 id="adicionar" className="kicker">
-            Adicionar pelo nome
-          </h2>
+        <motion.section className={`${styles.section} ${styles.addCol}`} variants={fadeUp} aria-labelledby="adicionar">
+          <h2 id="adicionar">Adicionar pelo nome</h2>
           <form className={styles.add} onSubmit={submit}>
             <input
               className="field-input"
@@ -169,47 +210,29 @@ export function FriendsScreen() {
           )}
         </motion.section>
 
-        <motion.section className={styles.section} variants={fadeUp} aria-labelledby="convite">
-          <h2 id="convite" className="kicker">
-            Seu link de convite
-          </h2>
-          <p className={`mono ${styles.invite}`}>{inviteUrl || '…'}</p>
-          <div className={styles.actions}>
-            <Button size="sm" variant="secondary" icon={<CopyIcon size={15} strokeWidth={1.7} />} onClick={copy} disabled={!inviteUrl}>
+        <motion.section className={`${styles.section} ${styles.inviteCol}`} variants={fadeUp} aria-labelledby="convite">
+          <h2 id="convite">Seu link de convite</h2>
+          <div className={styles.invite}>
+            <span className={`mono ${styles.inviteUrl}`}>{inviteUrl || '…'}</span>
+            <Button size="sm" icon={<CopyIcon size={15} strokeWidth={1.7} />} onClick={copy} disabled={!inviteUrl}>
               Copiar link
             </Button>
-            {'share' in navigator && (
+          </div>
+          {'share' in navigator && (
+            <div>
               <Button size="sm" variant="quiet" icon={<SendIcon size={15} strokeWidth={1.7} />} onClick={share} disabled={!inviteUrl}>
                 Compartilhar
               </Button>
-            )}
-          </div>
-          <p className={styles.hint}>Quem abrir o link e aceitar vira seu amigo na hora.</p>
+            </div>
+          )}
         </motion.section>
       </div>
 
-      {accepted.length > 0 && (
-        <motion.section className={styles.section} variants={fadeUp} aria-labelledby="lista">
-          <h2 id="lista" className="kicker">
-            Seus amigos
-          </h2>
-          <ul className={styles.people}>
-            {accepted.map((f) => (
-              <li key={f.user_id} className={styles.person}>
-                <span className={styles.name}>{at(f.username)}</span>
-                <span className={styles.actions}>
-                  <ButtonLink to={`/amigos/${f.user_id}`} size="sm" variant="secondary">
-                    Visitar jardim
-                  </ButtonLink>
-                  <Button size="sm" variant="quiet" onClick={() => setRemoving(f)}>
-                    Desfazer
-                  </Button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </motion.section>
-      )}
+      <motion.section className={styles.section} variants={fadeUp} aria-labelledby="conquistas">
+        <h2 id="conquistas">Conquistas</h2>
+        <Mural limit={12} emptyText="Quando você ou um amigo deixar uma árvore adulta ou bater um marco de dias seguidos, aparece aqui." />
+      </motion.section>
+
 
       <Dialog open={!!removing} title="Desfazer amizade?" onClose={() => setRemoving(null)}>
         <p className={styles.dialogText}>

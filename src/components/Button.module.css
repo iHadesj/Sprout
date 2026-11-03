@@ -3,10 +3,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 9px 20px;
+  min-height: 44px;
+  padding: 10px 22px;
   border: 1px solid transparent;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-pill);
   font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 500;
@@ -31,15 +31,16 @@
 }
 
 .sm {
-  min-height: 34px;
-  padding: 6px 14px;
+  min-height: 36px;
+  padding: 6px 16px;
   font-size: 15px;
 }
 
+/* o botão principal da tela: largo e alto (≥ 56 px) */
 .lg {
-  min-height: 50px;
-  padding: 12px 28px;
-  font-size: 19px;
+  min-height: 56px;
+  padding: 14px 34px;
+  font-size: 20px;
 }
 
 .icon {
@@ -50,6 +51,7 @@
 .primary {
   background: var(--herb);
   color: var(--herb-ink);
+  box-shadow: 0 10px 24px -14px rgba(47, 91, 69, 0.8);
 }
 
 .primary:hover:not(:disabled) {
@@ -69,6 +71,7 @@
 /* quiet: só texto sublinhado, como uma nota de rodapé */
 .quiet {
   min-height: 0;
+  border-radius: var(--r-xs);
   padding: 4px 2px;
   background: transparent;
   color: var(--ink-2);

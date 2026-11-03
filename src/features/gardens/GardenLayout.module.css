@@ -1,27 +1,23 @@
-/* página dupla: prancha à esquerda, ficha à direita, com a dobra do caderno no meio */
+/* página do jardim: a ilha grande à esquerda (sem moldura, sangrando pra fora da coluna) e o
+   painel à direita, por cima da beirada dela */
 .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
   width: min(calc(100% - 32px), 1240px);
   margin: 0 auto;
-  padding: 24px 0 48px;
+  padding: 0 0 48px;
 }
 
 @media (min-width: 960px) {
   .page {
-    grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr);
-    gap: 0;
-    height: calc(100dvh - 64px);
-    padding: 24px 0;
+    grid-template-columns: minmax(0, 1.45fr) minmax(360px, 1fr);
+    height: calc(100dvh - var(--header-h, 72px));
+    padding: 0;
   }
 }
 
 .plate {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
-  /* sem isto, ao sair do foco em tela cheia o canvas (ainda com a largura da tela) empurra a coluna */
+  position: relative;
   min-width: 0;
   min-height: 0;
   margin: 0;
@@ -29,72 +25,54 @@
 
 @media (min-width: 960px) {
   .plate {
-    padding-right: 32px;
-    border-right: 1px solid var(--rule);
-    /* sombra da dobra entre as duas páginas */
-    background: linear-gradient(to left, rgba(90, 70, 40, 0.07), transparent 28px);
+    /* a ilha avança por baixo do painel */
+    margin-right: -14%;
   }
 }
 
-/* moldura fina com cantoneiras, como uma gravura colada na página */
+.blob {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: 82%;
+  margin: auto;
+  aspect-ratio: 1;
+}
+
 .frame {
   position: relative;
   min-width: 0;
-  overflow: hidden;
-  height: min(46dvh, 400px);
+  height: min(44dvh, 380px);
   min-height: 0;
-  border: 1px solid var(--ink);
-  background: var(--paper-card);
 }
 
 @media (min-width: 960px) {
   .frame {
-    height: auto;
+    height: 100%;
   }
 }
 
-.frame::before,
-.frame::after {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  width: 14px;
-  height: 14px;
-  border-color: var(--ink);
-  border-style: solid;
-  pointer-events: none;
-}
-
-.frame::before {
-  top: 6px;
-  left: 6px;
-  border-width: 1px 0 0 1px;
-}
-
-.frame::after {
-  right: 6px;
-  bottom: 6px;
-  border-width: 0 1px 1px 0;
-}
-
-.caption {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  color: var(--ink-2);
-  font-size: 16px;
-}
-
 .sheet {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   overflow-y: auto;
 }
 
+/* celular: o painel (voltar + título) morde a base da ilha */
+@media (max-width: 959px) {
+  .sheet {
+    margin-top: -48px;
+    overflow: visible;
+  }
+}
+
+/* o painel rola por dentro (overflow corta nas bordas): o recuo à esquerda dá espaço pro
+   título avançar por cima da ilha sem ser cortado */
 @media (min-width: 960px) {
   .sheet {
-    padding: 0 4px 24px 40px;
+    padding: 28px 8px 28px 100px;
+    margin-left: -100px;
   }
 }
 
@@ -127,26 +105,20 @@
   height: 100%;
 }
 
-/* modo imersivo (foco e revisão): a prancha vira o fundo da tela inteira */
+/* modo imersivo (foco e revisão): a ilha vira o fundo da tela inteira; a mancha some */
 .page[data-immersive] .plate {
   position: fixed;
   inset: 0;
   z-index: 0;
-  padding: 0;
-  border: 0;
-  background: none;
+  margin: 0;
+}
+
+.page[data-immersive] .blob {
+  display: none;
 }
 
 .page[data-immersive] .frame {
   height: 100%;
-  border: 0;
-  background: transparent;
-}
-
-.page[data-immersive] .frame::before,
-.page[data-immersive] .frame::after,
-.page[data-immersive] .caption {
-  display: none;
 }
 
 .page[data-immersive] .sheet {
@@ -163,7 +135,7 @@
   }
 }
 
-/* celular: a ficha do foco desce pro pé da tela, e a árvore aparece em cima */
+/* celular: o painel do foco desce pro pé da tela, e a árvore aparece em cima */
 @media (max-width: 959px) {
   .page[data-immersive] {
     min-height: calc(100dvh - 88px);
@@ -174,7 +146,7 @@
   }
 }
 
-/* a árvore morreu: a prancha perde a cor por um instante */
+/* a árvore morreu: a ilha perde a cor por um instante */
 .page[data-withered] .frame {
   animation: wither 2.6s ease both;
 }

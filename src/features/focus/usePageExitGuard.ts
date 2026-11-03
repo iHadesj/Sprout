@@ -9,7 +9,10 @@ import { failSessionOnPageClose } from '../../lib/api'
 export function usePageExitGuard(sessionId: string | null, accessToken: string | null) {
   useEffect(() => {
     if (!sessionId || !accessToken) return
-    const onPageHide = () => failSessionOnPageClose(sessionId, accessToken)
+    // persisted = a página foi pro cache de voltar (pode reaparecer): não é fechar a aba
+    const onPageHide = (event: PageTransitionEvent) => {
+      if (!event.persisted) failSessionOnPageClose(sessionId, accessToken)
+    }
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault()
       event.returnValue = '' // navegadores mais antigos só mostram a confirmação com isto

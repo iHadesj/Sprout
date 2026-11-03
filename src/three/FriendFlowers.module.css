@@ -1,0 +1,13 @@
+/* etiquetinha de papel em cima da flor: quem plantou */
+.tag {
+  display: block;
+  padding: 3px 9px;
+  border: 1px solid var(--ink);
+  background: var(--paper-card);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--sheet-shadow);
+}

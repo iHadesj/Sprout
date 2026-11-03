@@ -13,6 +13,7 @@ import {
   invalidateSession,
   rateSession,
   startSession,
+  type FocusSession,
   type Garden,
   type ReportedFailReason,
 } from '../../lib/api'
@@ -31,6 +32,8 @@ import { usePageExitGuard } from './usePageExitGuard'
 
 const TICK_MS = 250
 const FINISH_ATTEMPTS = 4
+/** Ao retomar, conta uns segundos a menos (relógio do celular x do servidor): concluir cedo invalidaria. */
+const RESUME_MARGIN_MS = 15_000
 
 export function useFocusSession(garden: Garden) {
   const timer = useFocusStore((s) => s.timer)
@@ -113,7 +116,7 @@ export function useFocusSession(garden: Garden) {
         const store = useFocusStore.getState()
         store.setResult(outcome)
         store.setSession({ ...current, focus_rating: rating, growth_points: outcome.points })
-        store.dispatch({ type: 'RATED', now: performance.now() })
+        store.dispatch({ type: 'RATED', now: performance.now(), wallNow: Date.now() })
         await queryClient.invalidateQueries({ queryKey: ['plants'] })
         await queryClient.invalidateQueries({ queryKey: ['sessions'] })
         await queryClient.invalidateQueries({ queryKey: ['stats'] })
@@ -126,7 +129,41 @@ export function useFocusSession(garden: Garden) {
     [queryClient],
   )
 
-  /** O servidor não respondeu ao concluir: tenta de novo (ainda dentro dos 3 min de folga). */
+  /**
+   * Retoma um foco que já estava rodando no servidor: a aba recarregou (o iPhone faz isso com o
+   * Safari no fundo) ou a pessoa pediu pra continuar aqui. O tempo vem do started_at do servidor.
+   */
+  const resume = useCallback(
+    async (row: FocusSession) => {
+      if (useFocusStore.getState().timer.phase !== 'idle') return
+      primeChime()
+      // confere no servidor: a sessão guardada pode já ter acabado
+      setBusy(true)
+      const fresh = await getActiveSession().catch(() => null)
+      setBusy(false)
+      const store = useFocusStore.getState()
+      if (!fresh || fresh.id !== row.id) {
+        void queryClient.invalidateQueries({ queryKey: sessionKeys.active })
+        return
+      }
+      if (store.timer.phase !== 'idle') return
+      row = fresh
+      store.setSession(row)
+      store.setResult(null)
+      store.setSyncError(null)
+      store.dispatch({
+        type: 'RESUME',
+        now: performance.now(),
+        wallNow: Date.now(),
+        elapsedMs: Math.max(0, Date.now() - Date.parse(row.started_at) - RESUME_MARGIN_MS),
+        focusMs: row.planned_minutes * 60_000,
+        breakMs: garden.break_minutes * 60_000,
+      })
+    },
+    [garden.break_minutes, queryClient],
+  )
+
+  /** O servidor não respondeu ao concluir: tenta de novo (o servidor aceita até 2 h depois do fim). */
   const retryFinish = useCallback(() => {
     const store = useFocusStore.getState()
     if (store.session?.status !== 'active') return
@@ -172,6 +209,7 @@ export function useFocusSession(garden: Garden) {
     error,
     blocker,
     start,
+    resume,
     rate,
     retryFinish,
     endOtherSession,
@@ -187,7 +225,26 @@ function useTicker(active: boolean) {
   // a máquina mede pelo horário, não pela contagem de TICKs: um atraso não muda o tempo
   useEffect(() => {
     if (!active) return
-    return setBackgroundInterval(() => dispatch({ type: 'TICK', now: performance.now(), wallNow: Date.now() }), TICK_MS)
+    // a página ficou escondida desde o último TICK? (no celular ela congela no fundo e o
+    // relógio monotônico pode parar: a máquina então se acerta pelo relógio do sistema)
+    let hidden = document.visibilityState === 'hidden'
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') hidden = true
+    }
+    const onFreeze = () => (hidden = true)
+    document.addEventListener('visibilitychange', onHide)
+    document.addEventListener('freeze', onFreeze)
+    window.addEventListener('pagehide', onFreeze)
+    const stop = setBackgroundInterval(() => {
+      dispatch({ type: 'TICK', now: performance.now(), wallNow: Date.now(), resumed: hidden })
+      if (document.visibilityState === 'visible') hidden = false
+    }, TICK_MS)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', onHide)
+      document.removeEventListener('freeze', onFreeze)
+      window.removeEventListener('pagehide', onFreeze)
+    }
   }, [active, dispatch])
 }
 
@@ -201,10 +258,12 @@ async function reportFocusEnd(timer: TimerState, sessionId: string, queryClient:
       await invalidateSession(sessionId)
     }
   } catch {
-    // se nem isso chegar, o servidor abandona a sessão sozinho pelo heartbeat
+    // se nem isso chegar, o servidor abandona a sessão sozinho (passou do prazo sem heartbeat)
   } finally {
     void queryClient.invalidateQueries({ queryKey: ['plants'] })
     void queryClient.invalidateQueries({ queryKey: ['stats'] })
+    // a "sessão ativa" guardada ficou velha: sem isto a tela poderia tentar retomar ela
+    void queryClient.invalidateQueries({ queryKey: sessionKeys.active })
   }
 }
 

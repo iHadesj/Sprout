@@ -1,18 +1,28 @@
+/* convite: uma frase grande no meio, sobre um halo de papel, e o botão em cápsula */
 .page {
   display: grid;
-  gap: 10px;
-  width: min(calc(100% - 32px), 640px);
+  justify-items: center;
+  width: min(calc(100% - 32px), 720px);
   margin: 0 auto;
-  padding: 72px 0;
+  padding: 88px 0;
+  text-align: center;
 }
 
 .body {
   display: grid;
-  gap: 16px;
-  justify-items: start;
+  gap: 18px;
+  justify-items: center;
+  padding: 56px 48px;
+  background: radial-gradient(closest-side, var(--paper-deep) 55%, rgba(233, 226, 209, 0));
+}
+
+.body h1 {
+  font-size: clamp(36px, 6vw, 60px);
+  rotate: -1.5deg;
 }
 
 .lead {
+  max-width: 40ch;
   color: var(--ink-2);
   font-size: 18px;
 }

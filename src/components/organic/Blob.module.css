@@ -1,0 +1,6 @@
+.blob {
+  display: block;
+  overflow: visible;
+  fill: var(--paper-deep);
+  pointer-events: none;
+}

@@ -1,39 +1,24 @@
-// Botão do app. Variantes: principal (verde de herbário), secundário (contorno de tinta),
-// quiet (link sublinhado) e perigo (vermelho de carimbo). "busy" mostra um traço girando.
-// O ícone (do lucide-animated) anima quando o mouse passa por cima do botão inteiro.
-import { cloneElement, isValidElement, useState, type ReactElement, type ReactNode, type Ref } from 'react'
+// Botão do app, em cápsula. Variantes: principal (verde de herbário), secundário (contorno de
+// tinta), quiet (link sublinhado) e perigo (vermelho de carimbo). "busy" mostra um traço girando.
+// No hover cresce um pouco e no clique dá um "pop" (mola); o ícone (do lucide-animated) anima
+// quando o mouse passa por cima do botão inteiro.
+import type { ReactNode } from 'react'
 import { motion, type HTMLMotionProps } from 'motion/react'
 import { Link, type LinkProps } from 'react-router'
+import { spring } from '../lib/motion'
+import { useIconHover } from './iconHover'
 import { LoaderCircleIcon } from './icons/loader-circle'
 import styles from './Button.module.css'
-
-/** O que os ícones do lucide-animated expõem pra animar por fora. */
-interface AnimatedIcon {
-  startAnimation: () => void
-  stopAnimation: () => void
-}
-
-/** Liga o ícone ao hover do botão: o botão segura a ref e manda animar. */
-function useIconHover(icon: ReactNode) {
-  // o setter do estado faz papel de ref de callback: o React entrega a alça quando o ícone monta
-  const [handle, setHandle] = useState<AnimatedIcon | null>(null)
-  const node = isValidElement(icon) ? cloneElement(icon as ReactElement<{ ref?: Ref<AnimatedIcon> }>, { ref: setHandle }) : icon
-  return {
-    node,
-    hover: {
-      onMouseEnter: () => handle?.startAnimation?.(),
-      onMouseLeave: () => handle?.stopAnimation?.(),
-      onFocus: () => handle?.startAnimation?.(),
-      onBlur: () => handle?.stopAnimation?.(),
-    },
-  }
-}
 
 type Variant = 'primary' | 'secondary' | 'quiet' | 'danger'
 type Size = 'md' | 'sm' | 'lg'
 
-/** Afunda 1 px no toque, como uma tecla. */
-const press = { whileTap: { y: 1 } }
+/** Hover cresce, clique encolhe e volta com mola. O quiet (link) só afunda 1 px. */
+function press(variant: Variant) {
+  return variant === 'quiet'
+    ? { whileTap: { y: 1 } }
+    : { whileHover: { scale: 1.03 }, whileTap: { scale: 0.95 }, transition: spring.pop }
+}
 
 function buttonClass(variant: Variant, size: Size, className?: string) {
   return [styles.button, styles[variant], styles[size], className].filter(Boolean).join(' ')
@@ -71,7 +56,7 @@ export function Button({ variant = 'primary', size = 'md', busy, icon, className
       className={buttonClass(variant, size, className)}
       disabled={off}
       aria-busy={busy || undefined}
-      {...(off ? {} : press)}
+      {...(off ? {} : press(variant))}
       {...animated.hover}
       {...props}
     >
@@ -101,7 +86,7 @@ export function ButtonLink({
 }) {
   const animated = useIconHover(icon)
   return (
-    <MotionLink className={buttonClass(variant, size, className)} {...press} {...animated.hover} {...props}>
+    <MotionLink className={buttonClass(variant, size, className)} {...press(variant)} {...animated.hover} {...props}>
       <Content icon={animated.node}>{children}</Content>
     </MotionLink>
   )

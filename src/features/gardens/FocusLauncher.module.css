@@ -1,0 +1,235 @@
+/* centro da principal: tudo no eixo da ilha, sem moldura */
+.launcher {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+/* nome do jardim por cima do céu da ilha, puxado pra esquerda, com halo pra ler bem */
+.title {
+  position: relative;
+  z-index: 3;
+  align-self: flex-start;
+  display: grid;
+  gap: 6px;
+  margin: 0 0 -72px clamp(0px, 8vw, 120px);
+  padding: 18px 32px 18px 18px;
+  background: var(--halo-light);
+  pointer-events: none;
+}
+
+.title h1 {
+  font-size: clamp(40px, 6vw, 68px);
+}
+
+.meta {
+  color: var(--ink-2);
+  font-size: 18px;
+}
+
+.warn {
+  color: var(--sepia);
+}
+
+.stageWrap {
+  position: relative;
+  width: min(100%, 860px);
+  height: clamp(320px, 50vh, 520px);
+}
+
+.blob {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: 88%;
+  margin: auto;
+  aspect-ratio: 1;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* pedrinhas encostadas nas bordas da ilha, em alturas diferentes */
+.today,
+.streak {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.today {
+  top: 24%;
+  left: -2%;
+}
+
+.streak {
+  top: 52%;
+  right: -2%;
+}
+
+/* jardins num arco logo abaixo da ilha */
+.chips {
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  margin-top: -18px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 18px 8px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--paper-card);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 8px 18px -12px rgba(42, 40, 35, 0.45);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.chip:hover {
+  color: var(--ink);
+}
+
+/* o escolhido em tinta: o verde fica só pro botão de começar */
+.chip[aria-checked='true'] {
+  background: var(--ink);
+  box-shadow: 0 10px 20px -12px rgba(42, 40, 35, 0.7);
+  color: var(--paper-card);
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(42, 40, 35, 0.35);
+}
+
+.chip[aria-checked='true'] .dot {
+  box-shadow: 0 0 0 1.5px var(--paper-card);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 22px;
+  margin-top: 18px;
+}
+
+.aside {
+  display: grid;
+  gap: 2px;
+  color: var(--ink-2);
+  font-size: 15px;
+  text-align: left;
+}
+
+.open {
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+.open:hover {
+  color: var(--ink);
+}
+
+.sticky {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .title {
+    align-self: stretch;
+    margin: 0 0 -36px;
+    padding: 6px 0 14px;
+  }
+
+  .stageWrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 14px;
+    height: auto;
+  }
+
+  .stage {
+    position: relative;
+    flex: 0 0 100%;
+    height: min(280px, 36vh);
+  }
+
+  .blob {
+    bottom: auto;
+    height: min(270px, 34vh);
+    margin: 6px auto 0;
+  }
+
+  /* pedrinhas lado a lado, mordendo a base da ilha, em alturas diferentes */
+  .today,
+  .streak {
+    position: static;
+    margin-top: -58px;
+  }
+
+  .streak {
+    margin-top: -36px;
+  }
+
+  .today > div,
+  .streak > div {
+    --size: 124px;
+  }
+
+  /* jardins numa fileira só, que rola de lado dentro dela (a página não rola) */
+  .chips {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-self: stretch;
+    max-width: none;
+    margin: 8px -16px 0;
+    padding: 4px 16px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .chips > * {
+    flex: none;
+    scroll-snap-align: start;
+  }
+
+  .actions {
+    margin-top: 10px;
+  }
+
+  /* cópia do botão grudada no rodapé, acima da navegação, quando o da página sai da tela */
+  .sticky {
+    position: fixed;
+    right: 16px;
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 76px);
+    left: 16px;
+    z-index: 55;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sticky > button {
+    width: min(100%, 420px);
+  }
+}

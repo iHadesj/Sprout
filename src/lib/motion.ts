@@ -1,11 +1,17 @@
-// Presets de movimento (Motion), reusados no app inteiro. No caderno o movimento é contido:
-// coisas aparecem como se fossem escritas ou coladas na página, rápido e sem quicar.
-// A exceção é o carimbo, que "bate" no papel quando há algo pra comemorar (ou lamentar).
+// Presets de movimento (Motion), reusados no app inteiro. O movimento é expressivo: as coisas
+// entram com mola (um pouco de balanço), cliques dão um "pop" e o carimbo bate no papel.
+// Regras: nada atrasa um clique, só transform/opacity/clip-path animam, e na tela de foco não
+// tem movimento de ambiente. Quem pediu "reduzir movimento" no sistema vê só fades
+// (MotionConfig reducedMotion="user" + useReducedMotion onde precisa).
 import type { Transition, Variants } from 'motion/react'
 
 export const spring = {
-  /** padrão: assenta sem quicar */
-  soft: { type: 'spring', stiffness: 320, damping: 34 } satisfies Transition,
+  /** entradas: assenta com um balanço leve */
+  soft: { type: 'spring', stiffness: 180, damping: 20 } satisfies Transition,
+  /** cliques, chips, carimbos: rápido e com overshoot */
+  pop: { type: 'spring', stiffness: 420, damping: 16 } satisfies Transition,
+  /** seguir o mouse: lento e macio */
+  drift: { type: 'spring', stiffness: 60, damping: 14 } satisfies Transition,
   /** toques: rápido e firme */
   snappy: { type: 'spring', stiffness: 600, damping: 40 } satisfies Transition,
   /** carimbo batendo no papel */
@@ -13,12 +19,27 @@ export const spring = {
 }
 
 export const ease = [0.2, 0.7, 0.2, 1] as const
+/** overshoot curto */
+export const easeExpressive = [0.34, 1.56, 0.64, 1] as const
 
-/** Sobe um pouquinho e aparece. */
+/** Sobe e aparece, com mola. */
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.24, ease } },
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { ...spring.soft, opacity: { duration: 0.2 } } },
   exit: { opacity: 0, transition: { duration: 0.15 } },
+}
+
+/** Cresce do pequeno com um pop (pedrinhas, chips, bolinhas). */
+export const popIn: Variants = {
+  hidden: { opacity: 0, scale: 0.7 },
+  show: { opacity: 1, scale: 1, transition: { ...spring.pop, opacity: { duration: 0.15 } } },
+  exit: { opacity: 0, scale: 0.9, transition: { duration: 0.15 } },
+}
+
+/** Entra de um lado (custom: -1 esquerda, 1 direita), pra listas que alternam. */
+export const fromSide: Variants = {
+  hidden: (side: number = 1) => ({ opacity: 0, x: 28 * side }),
+  show: { opacity: 1, x: 0, transition: { ...spring.soft, opacity: { duration: 0.2 } } },
 }
 
 /** Revela da esquerda pra direita, como tinta sendo escrita. */
@@ -41,3 +62,6 @@ export function stagger(gap = 0.05, delay = 0.02): Variants {
     exit: {},
   }
 }
+
+/** Hover das coisas soltas (cards de jardim, bolinhas): cresce e gira um tiquinho. */
+export const hoverTilt = (i = 0) => ({ scale: 1.04, rotate: i % 2 ? 1.5 : -1.5, transition: spring.pop })

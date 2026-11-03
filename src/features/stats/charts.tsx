@@ -1,5 +1,6 @@
 // Gráficos da tela de estatísticas, em HTML e CSS (sem biblioteca de gráfico).
-// Regras: série única = uma cor só; barras finas com ponta arredondada; grade discreta;
+// Regras: série única = uma cor só; barras finas com ponta arredondada; sem grade de fundo
+// (só a linha de base e os rótulos do eixo);
 // só o maior valor rotulado; tooltip no hover E no foco do teclado; e todo valor também
 // aparece numa tabela, pra ninguém depender do tooltip.
 import type { CSSProperties } from "react";
@@ -172,9 +173,10 @@ export function BarTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => (
+        {rows.map((row, i) => (
           <tr key={row.key}>
-            <th scope="row" className={styles.barName}>
+            {/* as linhas recuam alternadamente: a lista não fica numa coluna reta */}
+            <th scope="row" className={styles.barName} style={{ paddingInlineStart: [0, 16, 7][i % 3] }}>
               {row.swatch && (
                 <span
                   className={styles.swatch}

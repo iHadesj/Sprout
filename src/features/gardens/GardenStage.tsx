@@ -3,9 +3,11 @@
 // escondido na tela mas disponível pra leitor de tela, já que a cena 3D não tem como ser lida.
 import { lazy, Suspense } from 'react'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
-import type { Garden, Plant } from '../../lib/api'
+import type { Garden, GardenFlower, Plant } from '../../lib/api'
 import { useFocusStore } from '../../stores/focusStore'
 import type { GiftShow } from '../../three/GiftEffects'
+import { useProfile } from '../account/queries'
+import { isHers } from '../surprise/surprise'
 import type { HonestySeal } from '../stats/insights'
 import { biomeOf } from './gardenOptions'
 import { IslandIcon } from './IslandIcon'
@@ -24,9 +26,18 @@ interface GardenStageProps {
   gifts?: GiftShow | null
   /** jardim de um amigo */
   visiting?: boolean
+  /** flores que amigos plantaram */
+  flowers?: GardenFlower[]
+  /** corações saindo ao vivo (visita) */
+  liveHearts?: number
+  /** nome de usuário do dono (visita); sem isso, o jardim é seu */
+  owner?: string | null
 }
 
-export function GardenStage({ garden, plants, neglected, seal, compact = false, gifts = null, visiting = false }: GardenStageProps) {
+export function GardenStage({ garden, plants, neglected, seal, compact = false, gifts = null, visiting = false, flowers, liveHearts, owner }: GardenStageProps) {
+  const profile = useProfile()
+  // a árvore velha da surpresa: só nos jardins da conta dela (dela vendo, ou alguém visitando)
+  const oldTree = isHers(visiting ? owner : profile.data?.username)
   const focusMode = useFocusStore((s) => s.timer.phase === 'focus' || s.timer.phase === 'review')
   const { growing, grown, dead } = summarizePlants(plants)
   const placeholder = (
@@ -48,12 +59,14 @@ export function GardenStage({ garden, plants, neglected, seal, compact = false, 
             fallback={placeholder}
             compact={compact}
             gifts={gifts}
-            visiting={visiting}
+            flowers={flowers}
+            liveHearts={liveHearts}
+            oldTree={oldTree}
           />
         </Suspense>
       </ErrorBoundary>
       <p className="visually-hidden" data-testid="garden-summary">
-        {growing ? `Crescendo: ${describeGrowing(growing)}` : 'Nenhuma planta crescendo'}. {grown} adultas, {dead} secas.
+        {growing ? `Crescendo: ${describeGrowing(growing, garden.biome)}` : 'Nenhuma planta crescendo'}. {grown} adultas, {dead} secas.
         {neglected && ' Folhas amareladas: faz mais de 3 dias sem foco aqui.'}
         {seal && ` ${seal.label}.`}
       </p>

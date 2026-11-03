@@ -45,6 +45,52 @@ describe('foco em segundo plano (VS Code, outra página)', () => {
   })
 })
 
+describe('celular: navegador no fundo congela a página', () => {
+  // no iPhone o relógio monotônico pode parar enquanto a página está congelada
+  const resumed = (mono: number, wall: number): TimerEvent => ({ type: 'TICK', now: T0 + mono, wallNow: WALL0 + wall, resumed: true })
+
+  it('voltar depois de 10 min (monotônico parado) não invalida e o timer se acerta pelo relógio do sistema', () => {
+    const s = run(focusing(), tick(1_000), resumed(1_250, 10 * MIN))
+    expect(s.phase).toBe('focus')
+    expect(remainingMs(s)).toBe(FOCUS - 10 * MIN)
+    // e os TICKs seguintes, com a página à vista, continuam batendo
+    const next = run(s, { type: 'TICK', now: T0 + 1_500, wallNow: WALL0 + 10 * MIN + 250 })
+    expect(next.phase).toBe('focus')
+  })
+
+  it('voltar depois do fim leva pra revisão', () => {
+    const s = run(focusing(), tick(1_000), resumed(1_250, FOCUS + 4 * MIN))
+    expect(s.phase).toBe('review')
+  })
+
+  it('relógio do sistema que voltou pra trás enquanto escondida continua invalidando', () => {
+    const s = run(focusing(), tick(5 * MIN), resumed(6 * MIN, 1 * MIN))
+    expect(s.phase).toBe('invalid')
+    expect(s.endReason).toBe('clock_changed')
+  })
+
+  it('a pausa também anda pelo relógio do sistema na volta', () => {
+    const rated = run(focusing(), tick(FOCUS), { type: 'RATED', now: T0 + FOCUS, wallNow: WALL0 + FOCUS })
+    const s = run(rated, { type: 'TICK', now: T0 + FOCUS + 1_000, wallNow: WALL0 + FOCUS + BREAK + 1_000, resumed: true })
+    expect(s.phase).toBe('idle')
+  })
+})
+
+describe('retomar um foco que já rodava no servidor (aba recarregada)', () => {
+  const resume = (elapsedMs: number): TimerEvent => ({ type: 'RESUME', now: T0, wallNow: WALL0, elapsedMs, focusMs: FOCUS, breakMs: BREAK })
+
+  it('volta pro foco com o tempo que já passou', () => {
+    const s = run(initialTimerState(), resume(10 * MIN))
+    expect(s.phase).toBe('focus')
+    expect(remainingMs(s)).toBe(FOCUS - 10 * MIN)
+  })
+
+  it('se o tempo já acabou, o primeiro TICK leva pra revisão', () => {
+    const s = run(initialTimerState(), resume(FOCUS + 20 * MIN), { type: 'TICK', now: T0 + 250, wallNow: WALL0 + 250 })
+    expect(s.phase).toBe('review')
+  })
+})
+
 describe('Fase 1 · mexer no relógio invalida', () => {
   it('relógio adiantado 1 min no meio do foco invalida a sessão', () => {
     const s = run(focusing(), tick(60_000), { type: 'TICK', now: T0 + 61_000, wallNow: WALL0 + 61_000 + MIN })

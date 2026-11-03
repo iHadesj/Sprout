@@ -30,16 +30,13 @@ export function InviteScreen() {
 
   return (
     <motion.section className={styles.page} variants={stagger(0.06)} initial="hidden" animate="show">
-      <motion.p className="kicker" variants={fadeUp}>
-        Convite
-      </motion.p>
       {owner.isPending && <p className={styles.muted}>Abrindo o convite…</p>}
       {owner.isError && (
         <motion.div className={styles.body} variants={fadeUp}>
           <h1>Esse convite não existe</h1>
           <p className={styles.lead}>Confira o link com quem mandou.</p>
           <ButtonLink to="/" variant="secondary">
-            Ir pro índice
+            Ir pro início
           </ButtonLink>
         </motion.div>
       )}

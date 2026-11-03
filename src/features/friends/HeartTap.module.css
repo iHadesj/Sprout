@@ -1,0 +1,69 @@
+/* o coração grande no centro dos carinhos e a contagem embaixo dele */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.buttonBox {
+  position: relative;
+  flex: none;
+}
+
+/* coração grande, redondo, vermelho de carimbo; não seleciona texto ao segurar */
+.heart {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--stamp);
+  box-shadow:
+    0 0 0 6px var(--paper),
+    0 0 0 7px rgba(163, 64, 44, 0.45),
+    0 18px 30px -14px rgba(120, 30, 20, 0.65);
+  color: #fff4ee;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.heart:focus-visible {
+  outline: 2px solid var(--herb);
+  outline-offset: 10px;
+}
+
+.floater {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -8px;
+  color: var(--stamp);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.count {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  max-width: 170px;
+}
+
+.total {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.label {
+  color: var(--ink-2);
+  font-size: 14px;
+}

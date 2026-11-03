@@ -1,5 +1,5 @@
-// Relógio do foco e da pausa como etiqueta de caderno: o tempo grande em Plex Mono e uma
-// régua fina embaixo que vai esvaziando (com tracinhos a cada 10%).
+// Relógio do foco e da pausa: o tempo grande em Plex Mono dentro de um anel fino que vai
+// esvaziando (cheio no começo, vazio no fim). Nada mais se mexe em volta.
 import { motion } from 'motion/react'
 import styles from './FocusScreen.module.css'
 
@@ -11,17 +11,33 @@ interface TimerLabelProps {
   tone: 'focus' | 'break'
 }
 
+const R = 46
+const LENGTH = 2 * Math.PI * R
+
 export function TimerLabel({ progress, label, caption, tone }: TimerLabelProps) {
   const clamped = Math.min(1, Math.max(0, progress))
   return (
     <div className={styles.timer} data-tone={tone}>
-      <span className={`mono ${styles.time}`} role="timer" aria-live="off" aria-label={label}>
-        {label}
+      <svg className={styles.ring} viewBox="0 0 100 100" aria-hidden="true">
+        <circle className={styles.ringTrack} cx="50" cy="50" r={R} />
+        <motion.circle
+          className={styles.ringFill}
+          cx="50"
+          cy="50"
+          r={R}
+          strokeDasharray={LENGTH}
+          transform="rotate(-90 50 50)"
+          initial={false}
+          animate={{ strokeDashoffset: LENGTH * (1 - clamped) }}
+          transition={{ duration: 0.25, ease: 'linear' }}
+        />
+      </svg>
+      <span className={styles.ringText}>
+        <span className={`mono ${styles.time}`} role="timer" aria-live="off" aria-label={label}>
+          {label}
+        </span>
+        <span className={styles.caption}>{caption}</span>
       </span>
-      <span className={styles.track} aria-hidden="true">
-        <motion.span className={styles.fill} initial={false} animate={{ scaleX: clamped }} transition={{ duration: 0.25, ease: 'linear' }} />
-      </span>
-      <span className={styles.caption}>{caption}</span>
     </div>
   )
 }

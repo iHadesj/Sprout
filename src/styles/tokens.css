@@ -1,7 +1,8 @@
-/* Tokens de design: "Caderno de botânico".
+/* Tokens de design: "Caderno solto".
    Um tema só, de papel: tinta escura, verde de herbário pras ações, vermelho de carimbo
-   pro que é perigoso ou definitivo, sépia pros avisos. Cantos quase retos (papel não é
-   arredondado) e quase nenhuma sombra. */
+   pro que é perigoso ou definitivo, sépia pros avisos. A forma é orgânica: nada de caixa
+   com borda nem grade de células iguais. Botões e chips são cápsulas, destaques ficam sobre
+   um halo difuso ou uma "pedrinha" (canto irregular), e quase nenhuma sombra. */
 
 :root {
   color-scheme: light;
@@ -31,6 +32,28 @@
   --r-xs: 2px;
   --r-sm: 4px;
   --r-md: 6px;
+  --r-pill: 999px; /* botões, chips, cápsulas */
+  --r-soft: 28px; /* Dialog, toasts */
+  /* pedrinha: canto irregular pros poucos fundos de destaque (num quadrado vira um seixo) */
+  --pebble: 47% 53% 49% 51% / 54% 46% 54% 46%;
+  --pebble-2: 53% 47% 55% 45% / 46% 52% 48% 54%;
+  /* a mesma ideia num retângulo (form do login): cantos grandes e desiguais */
+  --pebble-wide: 44px 60px 48px 64px / 54px 42px 60px 46px;
+  --pebble-wide-2: 58px 46px 62px 44px / 44px 58px 46px 56px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+  --s-9: 112px;
+
+  /* halo: fundo difuso atrás de um destaque, no lugar de uma caixa */
+  --halo: radial-gradient(closest-side, var(--paper-deep), rgba(233, 226, 209, 0));
+  --halo-light: radial-gradient(closest-side, rgba(248, 244, 234, 0.92) 55%, rgba(248, 244, 234, 0));
 
   /* "folha por cima": sombra curta e seca, como papel sobre papel */
   --sheet-shadow: 0 1px 0 rgba(42, 40, 35, 0.06), 0 6px 18px -8px rgba(42, 40, 35, 0.25);

@@ -1,0 +1,14 @@
+.drift > :nth-child(3n + 2) {
+  margin-inline-start: var(--drift-b, 18px);
+}
+
+.drift > :nth-child(3n) {
+  margin-inline-start: var(--drift-c, 8px);
+}
+
+@media (max-width: 759px) {
+  .drift {
+    --drift-b: 12px;
+    --drift-c: 5px;
+  }
+}

@@ -1,4 +1,4 @@
-/* Diário de campo: números como entradas datadas, gráficos a traço numa folha pautada */
+/* Diário de campo: números soltos em tamanhos diferentes e gráficos sem caixa nem grade */
 .page {
   display: grid;
   gap: 36px;
@@ -32,24 +32,42 @@
   justify-items: start;
   gap: 12px;
   padding-top: 18px;
-  border-top: 1px solid var(--ink);
 }
 
-/* resumo: quatro entradas com fio à esquerda, número em Plex Mono */
+/* resumo: o primeiro número enorme à esquerda; os outros menores, escalonados à direita */
 .tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
-  gap: 18px 28px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px 28px;
 }
 
 .tile {
   display: grid;
   align-content: start;
-  gap: 2px;
-  padding-left: 14px;
-  border-left: 1px solid var(--rule-strong);
+  gap: 4px;
+  flex: 0 1 auto;
+  max-width: 220px;
+}
+
+.tile:first-child {
+  max-width: none;
+}
+
+.tile:first-child {
+  flex: 1 1 300px;
+}
+
+.tile:nth-child(2) {
+  margin-top: 18px;
+}
+
+.tile:nth-child(3) {
+  margin-top: 64px;
+}
+
+.tile:nth-child(4) {
+  margin-top: 30px;
 }
 
 .tileLabel {
@@ -61,17 +79,39 @@
 }
 
 .tileValue {
-  margin-top: 4px;
   font-family: var(--font-mono);
-  font-size: 28px;
+  font-size: 30px;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.tile:first-child .tileValue {
+  font-size: clamp(52px, 7vw, 88px);
+  line-height: 1;
 }
 
 .tileDetail {
   color: var(--ink-3);
   font-size: 15px;
   font-style: italic;
+}
+
+@media (max-width: 759px) {
+  .tile:first-child {
+    flex-basis: 100%;
+  }
+
+  .tile:nth-child(n + 2) {
+    flex: 1 1 140px;
+    margin-top: 0;
+  }
+
+  .tile:nth-child(3) {
+    margin-top: 20px;
+  }
 }
 
 /* cada gráfico é uma seção do diário: título, linha de tinta e o desenho */
@@ -92,12 +132,14 @@
 
 /* frase da distração como anotação na margem */
 .insight {
-  padding: 4px 0 4px 14px;
-  border-left: 3px solid var(--sepia);
+  max-width: 34ch;
+  padding: 18px 28px 18px 0;
+  background: radial-gradient(closest-side, var(--sepia-soft), rgba(138, 106, 47, 0));
   color: var(--ink);
-  font-size: 21px;
+  font-size: 23px;
   font-style: italic;
   line-height: 1.35;
+  rotate: -1deg;
 }
 
 /* colunas por dia */
@@ -119,14 +161,14 @@
   justify-content: space-between;
 }
 
+/* sem grade de fundo: só a linha de base (a última) aparece; as outras guardam o rótulo */
 .gridLine {
   position: relative;
   height: 1px;
-  background: var(--rule);
 }
 
 .gridLine:last-child {
-  background: var(--ink);
+  background: var(--rule-strong);
 }
 
 .gridLabel {
@@ -161,7 +203,7 @@
 
 .columnBar {
   width: min(18px, 56%);
-  border-radius: 2px 2px 0 0;
+  border-radius: 4px 4px 0 0;
   background: var(--chart-bar);
   transition: filter 0.15s ease;
 }
@@ -200,8 +242,8 @@
   z-index: 2;
   display: none;
   gap: 2px;
-  padding: 7px 11px;
-  border: 1px solid var(--ink);
+  padding: 8px 14px;
+  border-radius: 14px;
   background: var(--paper-card);
   color: var(--ink);
   font-size: 14px;
@@ -253,7 +295,6 @@
 .tableView th,
 .tableView td {
   padding: 4px 16px 4px 0;
-  border-bottom: 1px solid var(--rule);
   text-align: left;
 }
 
@@ -265,13 +306,7 @@
 /* barras horizontais como tabela pautada */
 .barTable {
   width: 100%;
-  border-top: 1px solid var(--ink);
   border-collapse: collapse;
-}
-
-.barTable th,
-.barTable td {
-  border-bottom: 1px solid var(--rule);
 }
 
 .barName {
@@ -298,8 +333,8 @@
   width: 10px;
   height: 10px;
   margin-right: 9px;
-  border: 1px solid var(--ink);
   border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(42, 40, 35, 0.35);
   background: var(--swatch);
   vertical-align: 0.15em;
 }
@@ -319,14 +354,13 @@
 .barTrack {
   flex: 1;
   min-width: 40px;
-  border-bottom: 1px dashed var(--rule-strong);
 }
 
 .bar {
   display: block;
-  height: 10px;
-  min-width: 2px;
-  border-radius: 0 2px 2px 0;
+  height: 12px;
+  min-width: 4px;
+  border-radius: 0 6px 6px 0;
   background: var(--chart-bar);
 }
 
@@ -349,10 +383,10 @@
   }
 
   .plot {
-    padding-left: 46px;
+    padding-left: 66px;
   }
 
   .grid {
-    left: 46px;
+    left: 66px;
   }
 }

@@ -145,7 +145,6 @@ export function AuthLayout() {
           <div key="card" ref={cardScope} className={styles.cardWrap}>
             <motion.div
               className={styles.card}
-              style={{ borderRadius: 12 }}
               layout
               transition={cardLayout}
               variants={cardVariants(reduced)}

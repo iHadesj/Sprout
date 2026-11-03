@@ -1,13 +1,23 @@
-.sheet {
-  display: grid;
-  gap: 22px;
-  padding-top: 4px;
+/* visita: tudo no eixo da ilha do amigo; o coração morde a base dela */
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(calc(100% - 32px), 1000px);
+  margin: 0 auto;
+  padding: 8px 0 72px;
+  text-align: center;
+}
+
+.top {
+  align-self: flex-start;
 }
 
 .back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 36px;
   color: var(--ink-2);
   font-size: 16px;
   text-decoration: none;
@@ -15,128 +25,236 @@
 
 .back:hover {
   color: var(--ink);
-  text-decoration: underline;
 }
 
 .header {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .meta {
   color: var(--ink-2);
+  font-size: 17px;
 }
 
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  margin-top: 16px;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 12px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--r-sm);
-  background: none;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 16px 6px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--paper-card);
+  box-shadow: 0 0 0 1px var(--rule);
   color: var(--ink-2);
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
 }
 
 .tab[aria-selected='true'] {
-  border-color: var(--ink);
   background: var(--ink);
+  box-shadow: none;
   color: var(--paper-card);
 }
 
 .dot {
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--ink);
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(42, 40, 35, 0.35);
 }
 
-.records {
-  display: grid;
+.stageWrap {
+  position: relative;
+  width: min(100%, 820px);
+  height: clamp(300px, 46vh, 480px);
   margin: 0;
-  border-top: 1px solid var(--ink);
 }
 
-.records > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 2px;
-  border-bottom: 1px solid var(--rule);
+.blob {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: 90%;
+  margin: auto;
+  aspect-ratio: 1;
 }
 
-.records dt {
-  color: var(--ink-2);
-}
-
-.records dd {
-  margin: 0;
+.stage {
+  position: absolute;
+  inset: 0;
 }
 
 .gifts {
-  display: grid;
-  gap: 14px;
-}
-
-.giftRow {
+  position: relative;
+  z-index: 2;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 10px 14px;
+  gap: 8px;
+  margin-top: -36px;
 }
 
-.hint {
-  color: var(--ink-3);
-  font-size: 15px;
-  font-style: italic;
+.giftsTitle {
+  padding: 6px 24px;
+  background: var(--halo-light);
+  font-size: 20px;
 }
 
-/* contador de corações: − [999] + */
-.counter {
-  display: inline-flex;
-  align-items: stretch;
-  border: 1px solid var(--ink);
-  border-radius: var(--r-sm);
-  background: var(--paper-card);
+/* o coração no meio e as ações num arco em volta (posições vêm do componente: --x, --y) */
+.carinho {
+  position: relative;
+  width: 480px;
+  height: 340px;
 }
 
-.step {
-  display: grid;
-  place-items: center;
-  width: 38px;
+.actions {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tile {
+  position: absolute;
+  top: calc(56px + var(--y));
+  left: calc(50% + var(--x));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 124px;
+  margin: -46px 0 0 -62px;
+  padding: 0;
   border: 0;
   background: none;
   color: var(--ink);
+  font: inherit;
   cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
+  pointer-events: auto;
 }
 
-.step:hover {
-  background: var(--paper-deep);
+/* o ícone vem primeiro na tela, mas o nome vem primeiro no texto (é o que o leitor lê) */
+.tileIcon {
+  position: relative;
+  display: grid;
+  order: -1;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--paper-card);
+  box-shadow:
+    0 0 0 1px var(--rule-strong),
+    0 12px 22px -14px rgba(42, 40, 35, 0.55);
+  color: var(--herb);
+  transition: background-color 0.18s ease;
 }
 
-.amount {
-  width: 56px;
-  padding: 8px 0;
+.tile:hover:not(:disabled) .tileIcon {
+  background: var(--paper);
+}
+
+.tile[aria-pressed='true'] .tileIcon {
+  background: var(--herb);
+  color: var(--herb-ink);
+}
+
+/* já usado hoje: fica "dormindo" com um check */
+.tile[data-done] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.tile[data-done] .tileIcon {
+  color: var(--ink-3);
+}
+
+.check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--herb);
+  color: var(--herb-ink);
+}
+
+.tileLabel {
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tileHint {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* cores da flor: abrem num leque de bolinhas */
+.colors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 460px;
+  padding: 6px 0 20px;
+}
+
+.swatch {
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-inline: 1px solid var(--rule-strong);
-  background: none;
-  color: var(--stamp);
-  font-size: 18px;
-  text-align: center;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 4px rgba(42, 40, 35, 0.25);
+  cursor: pointer;
 }
 
-.amount:focus-visible {
-  outline: 2px solid var(--herb);
-  outline-offset: -2px;
+@media (max-width: 759px) {
+  .stageWrap {
+    height: min(300px, 40vh);
+  }
+
+  .gifts {
+    margin-top: -40px;
+  }
+
+  /* celular: coração no meio e as ações numa fileira embaixo, em alturas alternadas */
+  .carinho {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: auto;
+  }
+
+  .actions {
+    position: static;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 14px;
+    pointer-events: auto;
+  }
+
+  .tile {
+    position: static;
+    width: 33%;
+    max-width: 120px;
+    margin: 0;
+  }
+
+  .tile:nth-child(2) {
+    translate: 0 16px;
+  }
 }

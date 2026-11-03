@@ -19,7 +19,10 @@ type Fn<F extends keyof Database['public']['Functions']> = Database['public']['F
 export type FriendEntry = Fn<'list_friends'>[number]
 export type RankingEntry = Fn<'friend_ranking'>[number]
 export type UnseenGift = Fn<'unseen_gifts'>[number]
-export type GiftKind = 'water' | 'heart'
+export type GiftKind = 'water' | 'heart' | 'seed'
+export type GardenFlower = Fn<'garden_flowers'>[number]
+export type FeedEvent = Fn<'friend_feed'>[number]
+export type NudgeReply = Fn<'nudge_replies'>[number]
 
 /** Motivos que o navegador pode relatar ao falhar uma sessão. */
 export type ReportedFailReason = 'gave_up' | 'page_closed'
@@ -230,12 +233,21 @@ export async function sendGift(to: string, kind: GiftKind, amount = 1): Promise<
   unwrap(await supabase.rpc('send_gift', { p_to: to, p_kind: kind, p_amount: amount }))
 }
 
-/** Quando foi a última rega que eu mandei pra esse amigo (null = nunca). */
-export async function lastWaterTo(userId: string): Promise<string | null> {
+/** Quando foi o último presente desse tipo que eu mandei pra esse amigo (null = nunca). */
+export async function lastGiftTo(userId: string, kind: GiftKind): Promise<string | null> {
   const rows = unwrap(
-    await supabase.from('gifts').select('created_at').eq('to_id', userId).eq('kind', 'water').order('created_at', { ascending: false }).limit(1),
+    await supabase.from('gifts').select('created_at').eq('to_id', userId).eq('kind', kind).order('created_at', { ascending: false }).limit(1),
   )
   return rows[0]?.created_at ?? null
+}
+
+/** Quando eu plantei a última flor pra esse amigo (em qualquer jardim dele). */
+export async function lastFlowerFor(gardenIds: string[]): Promise<string | null> {
+  if (gardenIds.length === 0) return null
+  const rows = unwrap(
+    await supabase.from('flowers').select('planted_at').in('garden_id', gardenIds).order('planted_at', { ascending: false }).limit(1),
+  )
+  return rows[0]?.planted_at ?? null
 }
 
 export async function unseenGifts(): Promise<UnseenGift[]> {
@@ -244,4 +256,32 @@ export async function unseenGifts(): Promise<UnseenGift[]> {
 
 export async function markGiftsSeen(): Promise<number> {
   return unwrap(await supabase.rpc('mark_gifts_seen'))
+}
+
+// ---------- flores, mural e chamados ----------
+
+/** Planta uma flor num jardim de amigo (o servidor escolhe o lugar e confere o limite semanal). */
+export async function plantFlower(gardenId: string, color: string): Promise<Tables<'flowers'>> {
+  return unwrap(await supabase.rpc('plant_flower', { p_garden: gardenId, p_color: color }))
+}
+
+export async function gardenFlowers(gardenId: string): Promise<GardenFlower[]> {
+  return unwrap(await supabase.rpc('garden_flowers', { p_garden: gardenId }))
+}
+
+export async function friendFeed(): Promise<FeedEvent[]> {
+  return unwrap(await supabase.rpc('friend_feed'))
+}
+
+/** true = aplauso novo; false = você já tinha aplaudido essa conquista. */
+export async function clapEvent(to: string, eventKey: string): Promise<boolean> {
+  return unwrap(await supabase.rpc('clap', { p_to: to, p_event_key: eventKey }))
+}
+
+export async function nudgeReplies(): Promise<NudgeReply[]> {
+  return unwrap(await supabase.rpc('nudge_replies'))
+}
+
+export async function markNudgeRepliesSeen(): Promise<number> {
+  return unwrap(await supabase.rpc('mark_nudge_replies_seen'))
 }

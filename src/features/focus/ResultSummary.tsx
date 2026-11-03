@@ -34,7 +34,6 @@ export function ResultSummary({ result }: { result: RatingResult }) {
       initial="hidden"
       animate="show"
     >
-      <p className="kicker">Anotado</p>
       <h2>{title}</h2>
       <p>{text}</p>
       {adult && (

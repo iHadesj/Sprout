@@ -17,7 +17,7 @@
   padding: 0;
 }
 
-/* amostras de cor como bolinhas de aquarela; a escolhida ganha um círculo de tinta */
+/* amostras de cor em bolinhas; a escolhida ganha um anel de tinta */
 .swatches {
   display: flex;
   flex-wrap: wrap;
@@ -42,22 +42,24 @@
     0 0 0 4.5px var(--ink);
 }
 
+/* biomas: cápsulas soltas (a escolhida em tinta) */
 .biomes {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border: 1px solid var(--ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .biome {
   position: relative;
   display: grid;
   gap: 1px;
-  padding: 10px 12px;
+  padding: 9px 18px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 1px var(--rule-strong);
   cursor: pointer;
-}
-
-.biome + .biome {
-  border-left: 1px solid var(--ink);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .biome input {
@@ -86,9 +88,13 @@
 }
 
 .times {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 20px;
+}
+
+.times > * {
+  flex: 1 1 160px;
 }
 
 .rangeLabel {

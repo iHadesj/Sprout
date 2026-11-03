@@ -102,19 +102,25 @@ describe('Fase 2 · o tempo da sessão é medido só pelo banco', () => {
     expect(done.ended_at).not.toBeNull()
   })
 
-  it('terminar mais de 3 min depois do planejado invalida', async () => {
+  it('voltar até 2 h depois do fim ainda conclui (celular com o navegador no fundo)', async () => {
     const { user, s } = await startedSession()
-    await ageSession(db, s.id, 25 + 3.5)
+    await ageSession(db, s.id, 25 + 90)
+    const done = await rpc<Session>(db, user, 'finish_session', { p_session_id: s.id, p_exits: 0 })
+    expect(done.status).toBe('completed')
+  })
+
+  it('terminar mais de 2 h depois do planejado invalida', async () => {
+    const { user, s } = await startedSession()
+    await ageSession(db, s.id, 25 + 125)
     const done = await rpc<Session>(db, user, 'finish_session', { p_session_id: s.id, p_exits: 0 })
     expect(done.fail_reason).toBe('bad_timing')
   })
 
-  it('sem heartbeat há mais de 3 min invalida', async () => {
+  it('heartbeat parado no meio (página congelada no celular) não invalida', async () => {
     const { user, s } = await startedSession()
-    await ageSession(db, s.id, 25, 4 * 60)
+    await ageSession(db, s.id, 25, 20 * 60)
     const done = await rpc<Session>(db, user, 'finish_session', { p_session_id: s.id, p_exits: 0 })
-    expect(done.status).toBe('invalid')
-    expect(done.fail_reason).toBe('no_heartbeat')
+    expect(done.status).toBe('completed')
   })
 
   it('o usuário não consegue mexer no started_at pra encurtar a sessão', async () => {
@@ -257,9 +263,17 @@ describe('falha, invalidação e abandono', () => {
     await expect(rpc(db, user, 'start_session', { p_garden_id: other.id })).rejects.toMatchObject({ code: 'SP002' })
   })
 
-  it('sessão sem heartbeat há mais de 90 s é abandonada e a planta morre', async () => {
+  it('sem heartbeat no meio do foco a sessão continua ativa (dá pra voltar e concluir)', async () => {
     const { user, garden, s } = await startedSession()
     await ageSession(db, s.id, 5, 100)
+    await expect(rpc(db, user, 'start_session', { p_garden_id: garden.id })).rejects.toMatchObject({ code: 'SP002' })
+    expect(await session(s.id)).toMatchObject({ status: 'active' })
+    expect((await plant(s.plant_id)).status).toBe('growing')
+  })
+
+  it('sessão esquecida (sem heartbeat e passou do planejado + 2 h) é abandonada e a planta morre', async () => {
+    const { user, garden, s } = await startedSession()
+    await ageSession(db, s.id, 25 + 121, 100)
     const next = await rpc<Session>(db, user, 'start_session', { p_garden_id: garden.id })
     expect(await session(s.id)).toMatchObject({ status: 'abandoned', fail_reason: 'no_heartbeat' })
     expect((await plant(s.plant_id)).status).toBe('dead')
@@ -268,7 +282,7 @@ describe('falha, invalidação e abandono', () => {
 
   it('expire_stale_sessions deixa o jardim mostrar a planta morta sem precisar começar outra sessão', async () => {
     const { user, s } = await startedSession()
-    await ageSession(db, s.id, 2, 95)
+    await ageSession(db, s.id, 25 + 121, 95)
     expect(await rpc<number>(db, user, 'expire_stale_sessions')).toBe(1)
     expect((await plant(s.plant_id)).status).toBe('dead')
   })

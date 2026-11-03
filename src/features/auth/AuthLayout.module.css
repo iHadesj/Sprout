@@ -1,5 +1,5 @@
-/* Login e cadastro: cena 3D tela cheia atrás, wordmark no canto e o card um pouco abaixo
-   do meio. --sky (vem do loginVariants.ts) é a faixa de cima onde a muda aparece. */
+/* Login e cadastro: cena 3D tela cheia atrás, wordmark no canto e o form um pouco abaixo
+   do meio, sobre uma pedrinha de papel que respira (sem card retangular). --sky (vem do loginVariants.ts) é a faixa de cima onde a muda aparece. */
 
 .screen {
   position: relative;
@@ -46,17 +46,39 @@
 
 .cardWrap {
   position: relative;
-  width: min(360px, 100%);
+  width: min(400px, 100%);
 }
 
+/* a pedrinha: cantos grandes e desiguais que mudam devagar; um halo de papel em volta */
 .card {
-  padding: 22px 22px 18px;
-  border: 1px solid rgba(42, 40, 35, 0.1);
-  background: rgba(248, 244, 234, 0.78);
+  padding: 34px 38px 30px;
+  border-radius: var(--pebble-wide);
+  background: rgba(248, 244, 234, 0.8);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 1px 2px rgba(42, 40, 35, 0.05),
-    0 18px 44px -24px rgba(42, 40, 35, 0.35);
+    0 0 0 10px rgba(248, 244, 234, 0.28),
+    0 30px 60px -30px rgba(42, 40, 35, 0.4);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
   backdrop-filter: blur(10px) saturate(1.1);
+  animation: breathe 6s ease-in-out infinite alternate;
+}
+
+@keyframes breathe {
+  from {
+    border-radius: var(--pebble-wide);
+  }
+  to {
+    border-radius: var(--pebble-wide-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .card {
+    padding: 28px 24px 24px;
+  }
 }

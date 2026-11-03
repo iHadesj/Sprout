@@ -7,8 +7,9 @@ import { ContactShadows, Float, OrbitControls } from '@react-three/drei'
 import { useReducedMotion } from 'motion/react'
 import { NeutralToneMapping, Vector3 } from 'three'
 import { biomeOf } from '../features/gardens/gardenOptions'
-import type { Garden, Plant } from '../lib/api'
-import { isForHer } from '../features/surprise/surprise'
+import type { Garden, GardenFlower, Plant } from '../lib/api'
+import { HeartFountain } from './CheerEffects'
+import { FriendFlowers } from './FriendFlowers'
 import { GiftEffects, type GiftShow } from './GiftEffects'
 import { Grass } from './Grass'
 import { HonestySign } from './HonestySign'
@@ -16,7 +17,7 @@ import { Island } from './Island'
 import { SceneLights } from './SceneLights'
 import { buildIsland, islandDepth, islandRadius } from './islandGeometry'
 import { OldTree } from './OldTree'
-import { DriftingLeaves, PetalBurst, type Burst } from './Particles'
+import { FallingLeaves, PetalBurst, Snowfall, type Burst } from './Particles'
 import { GrowingPlant, PlantField } from './Plant'
 import { hashString } from './random'
 import { useSceneMaterials } from './useSceneMaterials'
@@ -38,7 +39,12 @@ export interface GardenSceneProps {
   /** presentes de amigos tocando na cena (regador, corações) */
   gifts?: GiftShow | null
   /** jardim de um amigo (só olhando): sem as surpresas que são deste navegador */
-  visiting?: boolean
+  /** a árvore velha da surpresa (quem decide é o GardenStage, pelo dono do jardim) */
+  oldTree?: boolean
+  /** flores que amigos plantaram nesta ilha */
+  flowers?: GardenFlower[]
+  /** corações mandados agora, nesta visita (sobem ao vivo); undefined = sem a fonte */
+  liveHearts?: number
 }
 
 const FOV = 38
@@ -59,7 +65,7 @@ function defaultCamera(radius: number, aspect: number) {
   }
 }
 
-export default function GardenScene({ garden, plants, focusMode = false, neglected = false, sealLevel = 0, fallback, compact = false, gifts = null, visiting = false }: GardenSceneProps) {
+export default function GardenScene({ garden, plants, focusMode = false, neglected = false, sealLevel = 0, fallback, compact = false, gifts = null, oldTree = false, flowers, liveHearts }: GardenSceneProps) {
   // "reduzir movimento" no sistema: a ilha para de flutuar e girar, sem folhas no ar
   const reducedMotion = useReducedMotion() ?? false
   const radius = islandRadius(plants)
@@ -88,7 +94,9 @@ export default function GardenScene({ garden, plants, focusMode = false, neglect
         motion={!reducedMotion}
         compact={compact}
         gifts={gifts}
-        visiting={visiting}
+        oldTree={oldTree}
+        flowers={flowers}
+        liveHearts={liveHearts}
       />
     </Canvas>
   )
@@ -104,12 +112,15 @@ interface ContentsProps {
   motion: boolean
   compact: boolean
   gifts: GiftShow | null
-  visiting: boolean
+  oldTree: boolean
+  flowers?: GardenFlower[]
+  liveHearts?: number
 }
 
-function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel, motion, compact, gifts, visiting }: ContentsProps) {
+function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel, motion, compact, gifts, oldTree, flowers, liveHearts }: ContentsProps) {
   const seed = hashString(garden.id)
   const biome = biomeOf(garden.biome)
+  const leaves = useMemo(() => leafColors(garden.color), [garden.color])
   const growing = plants.find((p) => p.status === 'growing') ?? null
   const [bursts, removeBurst] = useAdultBursts(plants, garden.color)
   const depth = islandDepth(radius)
@@ -121,17 +132,18 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
 
   return (
     <>
-      <SceneLights radius={radius} />
+      <SceneLights radius={radius} biome={biome} />
 
       <Float enabled={motion} speed={1} rotationIntensity={0.12} floatIntensity={0.35} floatingRange={[-0.06, 0.06]}>
         <Island shape={island} material={materials.island} />
         <Grass radius={radius} biome={biome} color={garden.color} seed={seed} spots={spots} heightAt={island.heightAt} materials={materials} />
-        <PlantField plants={plants} color={garden.color} lodDistance={radius * 2 + 8} heightAt={island.heightAt} materials={materials} />
+        <PlantField plants={plants} color={garden.color} biome={biome} lodDistance={radius * 2 + 8} heightAt={island.heightAt} materials={materials} />
         {growing && (
           <GrowingPlant
             key={growing.id}
             plant={growing}
             color={garden.color}
+            biome={biome}
             motion={motion}
             groundY={island.heightAt(growing.position_x, growing.position_z)}
           />
@@ -139,12 +151,19 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
         {bursts.map((burst) => (
           <PetalBurst key={burst.id} burst={burst} onDone={removeBurst} />
         ))}
-        {isForHer() && !visiting && <OldTree radius={radius} spots={spots} heightAt={island.heightAt} material={materials.plant} motion={motion} />}
+        {oldTree && <OldTree radius={radius} spots={spots} heightAt={island.heightAt} material={materials.plant} motion={motion} />}
         {sealLevel > 0 && (
           <HonestySign level={sealLevel as 1 | 2 | 3} radius={radius} spots={spots} heightAt={island.heightAt} material={materials.island} />
         )}
-        {motion && <DriftingLeaves radius={radius} />}
+        {motion &&
+          (biome === 'neve' ? (
+            <Snowfall radius={radius} heightAt={island.heightAt} />
+          ) : (
+            <FallingLeaves radius={radius} heightAt={island.heightAt} colors={leaves} />
+          ))}
         {gifts && <GiftEffects show={gifts} radius={radius} motion={motion} />}
+        {flowers && flowers.length > 0 && <FriendFlowers flowers={flowers} heightAt={island.heightAt} material={materials.plant} />}
+        {liveHearts !== undefined && <HeartFountain total={liveHearts} radius={radius} />}
       </Float>
 
       <ContactShadows
@@ -172,6 +191,11 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
       <CameraRig radius={radius} focus={focusMode && growing ? [growing.position_x, growing.position_z] : null} />
     </>
   )
+}
+
+/** Tons das folhas que caem: verdes, um amarelado e, de vez em quando, uma da cor do jardim. */
+function leafColors(gardenColor: string) {
+  return ['#5f9a45', '#86b85d', gardenColor, '#3f7f3a', '#c9b45a', '#71ad4f', '#a9cf76', gardenColor]
 }
 
 /** Leva a câmera suavemente até o enquadramento certo (geral, ou de perto no foco). */

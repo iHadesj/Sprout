@@ -1,5 +1,7 @@
 // Avisa o servidor a cada 30 s que a aba continua aberta (session_heartbeat).
-// Fechou a aba, os avisos param e o servidor abandona a sessão sozinho (90 s sem notícias).
+// Os avisos param quando a aba fecha ou congela (celular com o navegador no fundo). O servidor
+// não pune o silêncio no meio do foco: só abandona a sessão quando já passou do planejado
+// + 2 h sem notícias (aí nem daria mais pra concluir). Fechar a aba de propósito o front avisa.
 // Roda no relógio de segundo plano: com o Sprout atrás de outro app, o Chrome atrasaria
 // um setInterval comum pra 1x por minuto, perto demais do limite do servidor.
 // Se o servidor responder que a sessão não está mais ativa, chama `onLost`.
@@ -21,7 +23,7 @@ export function useHeartbeat(sessionId: string | null, onLost: () => void) {
       try {
         if (!(await sendHeartbeat(sessionId))) onLostRef.current()
       } catch {
-        // rede oscilou: o próximo heartbeat tenta de novo (o servidor tolera 90 s)
+        // rede oscilou: o próximo heartbeat tenta de novo
       }
     }, HEARTBEAT_MS)
   }, [sessionId])

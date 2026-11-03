@@ -25,7 +25,8 @@ export interface IslandShape {
 export const BIOME_COLORS: Record<Biome, { top: [string, string]; rim: string; grass: [string, string] }> = {
   campo: { top: ['#a6c77a', '#8fb767'], rim: '#6e9a4e', grass: ['#7aa458', '#c4dc98'] },
   cerrado: { top: ['#dcc584', '#cbb06a'], rim: '#a98e4b', grass: ['#b39648', '#ecd89c'] },
-  neve: { top: ['#f6f8f8', '#e6ecee'], rim: '#c9d4da', grass: ['#8aa996', '#cddfd2'] },
+  // neve: branco frio (azulado nas faces de sombra), lábio de neve e capim seco furando
+  neve: { top: ['#f4f8fc', '#dde8f2'], rim: '#c3d3e1', grass: ['#8c8a5e', '#cfcba0'] },
 }
 
 /** Faixas de terra e rocha, de cima pra baixo (alternando, como estratos). */
@@ -48,7 +49,8 @@ export function buildIsland(radius: number, biome: Biome, gardenColor: string, s
   const b = new MeshBuilder(random, 0.05)
   const palette = BIOME_COLORS[biome]
   const tint = new Color(gardenColor)
-  const grassColors = palette.top.map((c) => new Color(c).lerp(tint, 0.07))
+  // a cor do jardim tinge o chão de leve (na neve, quase nada: neve é branca)
+  const grassColors = palette.top.map((c) => new Color(c).lerp(tint, biome === 'neve' ? 0.015 : 0.07))
   const pickGrass = () => grassColors[random() < 0.5 ? 0 : 1]
   const up = new Vector3(0, 1, 0)
   const depth = islandDepth(radius)
@@ -139,12 +141,14 @@ export function buildIsland(radius: number, biome: Biome, gardenColor: string, s
     b.triangleFacing(previous[i], tip, previous[next], out, EARTH[5])
   }
 
-  rocks(b, radius, plants, heightAt, random)
+  rocks(b, radius, plants, heightAt, random, biome === 'neve')
   return { geometry: b.build(), heightAt }
 }
 
-/** Algumas pedras perto da borda, longe das plantas. */
-function rocks(b: MeshBuilder, radius: number, plants: Spot[], heightAt: IslandShape['heightAt'], random: () => number) {
+const SNOW_TOP = new Color('#f6f9fc')
+
+/** Algumas pedras perto da borda, longe das plantas (na neve, com neve em cima). */
+function rocks(b: MeshBuilder, radius: number, plants: Spot[], heightAt: IslandShape['heightAt'], random: () => number, snowy: boolean) {
   const ico = new IcosahedronGeometry(1, 0)
   const pos = ico.getAttribute('position')
   const count = 3 + Math.floor(radius / 2)
@@ -168,7 +172,9 @@ function rocks(b: MeshBuilder, radius: number, plants: Spot[], heightAt: IslandS
       for (let t = 0; t < pos.count; t += 3) {
         const [a, c, d] = [vertex(t), vertex(t + 1), vertex(t + 2)]
         const facing = new Vector3().addVectors(a, c).add(d).divideScalar(3).sub(base)
-        b.triangleFacing(a, c, d, facing, ROCK[(a.y + c.y + d.y) / 3 > base.y + size * 0.1 ? 1 : 0])
+        const y = (a.y + c.y + d.y) / 3
+        const color = snowy && y > base.y + size * 0.22 ? SNOW_TOP : ROCK[y > base.y + size * 0.1 ? 1 : 0]
+        b.triangleFacing(a, c, d, facing, color)
       }
       break
     }

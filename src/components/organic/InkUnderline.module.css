@@ -1,0 +1,16 @@
+.ink {
+  position: absolute;
+  right: -4px;
+  bottom: -6px;
+  left: -4px;
+  height: 12px;
+  color: var(--herb);
+  pointer-events: none;
+}
+
+.ink svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: visible;
+}
