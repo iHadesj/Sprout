@@ -1,0 +1,62 @@
+/* Login e cadastro: cena 3D tela cheia atrás, wordmark no canto e o card um pouco abaixo
+   do meio. --sky (vem do loginVariants.ts) é a faixa de cima onde a muda aparece. */
+
+.screen {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: var(--sky) 16px 40px;
+  overflow-x: hidden;
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* sem WebGL: a muda em SVG no meio do céu */
+.fallback {
+  position: absolute;
+  top: calc(56px + (var(--sky) - 56px) / 2);
+  left: 50%;
+  translate: -50% -50%;
+}
+
+.wordmark {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.wordmark span {
+  display: inline-block;
+}
+
+.cardWrap {
+  position: relative;
+  width: min(360px, 100%);
+}
+
+.card {
+  padding: 22px 22px 18px;
+  border: 1px solid rgba(42, 40, 35, 0.1);
+  background: rgba(248, 244, 234, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(42, 40, 35, 0.05),
+    0 18px 44px -24px rgba(42, 40, 35, 0.35);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}

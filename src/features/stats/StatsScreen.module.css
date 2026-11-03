@@ -1,0 +1,358 @@
+/* Diário de campo: números como entradas datadas, gráficos a traço numa folha pautada */
+.page {
+  display: grid;
+  gap: 36px;
+  width: min(calc(100% - 32px), 920px);
+  margin: 0 auto;
+  padding: 36px 0 72px;
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+}
+
+.header h1 em {
+  font-style: italic;
+}
+
+.header p:last-child {
+  max-width: 60ch;
+  color: var(--ink-2);
+  font-size: 18px;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ink);
+}
+
+/* resumo: quatro entradas com fio à esquerda, número em Plex Mono */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 18px 28px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.tile {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding-left: 14px;
+  border-left: 1px solid var(--rule-strong);
+}
+
+.tileLabel {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tileValue {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.tileDetail {
+  color: var(--ink-3);
+  font-size: 15px;
+  font-style: italic;
+}
+
+/* cada gráfico é uma seção do diário: título, linha de tinta e o desenho */
+.card {
+  display: grid;
+  gap: 8px;
+}
+
+.card h2 {
+  font-size: 26px;
+}
+
+.cardHint {
+  color: var(--ink-3);
+  font-size: 15px;
+  font-style: italic;
+}
+
+/* frase da distração como anotação na margem */
+.insight {
+  padding: 4px 0 4px 14px;
+  border-left: 3px solid var(--sepia);
+  color: var(--ink);
+  font-size: 21px;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+/* colunas por dia */
+.figure {
+  margin: 10px 0 0;
+}
+
+.plot {
+  position: relative;
+  height: 210px; /* 180 de área + 30 da faixa dos rótulos do eixo */
+  padding: 0 0 30px 56px;
+}
+
+.grid {
+  position: absolute;
+  inset: 0 0 30px 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.gridLine {
+  position: relative;
+  height: 1px;
+  background: var(--rule);
+}
+
+.gridLine:last-child {
+  background: var(--ink);
+}
+
+.gridLabel {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -8px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.columns {
+  position: relative;
+  display: flex;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.column {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: 0;
+  cursor: default;
+  outline: none;
+}
+
+.columnBar {
+  width: min(18px, 56%);
+  border-radius: 2px 2px 0 0;
+  background: var(--chart-bar);
+  transition: filter 0.15s ease;
+}
+
+.column:hover .columnBar,
+.column:focus-visible .columnBar {
+  filter: brightness(1.15);
+}
+
+.column:focus-visible {
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px var(--herb);
+}
+
+.columnCap {
+  position: absolute;
+  margin-bottom: 4px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.columnTick {
+  position: absolute;
+  top: calc(100% + 8px);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+/* tooltip: bilhetinho de papel */
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  display: none;
+  gap: 2px;
+  padding: 7px 11px;
+  border: 1px solid var(--ink);
+  background: var(--paper-card);
+  color: var(--ink);
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--sheet-shadow);
+}
+
+.tooltip strong {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.tooltip span {
+  color: var(--ink-2);
+}
+
+.column:hover .tooltip,
+.column:focus-visible .tooltip {
+  display: grid;
+}
+
+.column:first-child .tooltip {
+  left: 0;
+}
+
+.column:last-child .tooltip {
+  right: 0;
+}
+
+.tableView {
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.tableView summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tableView table {
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableView th,
+.tableView td {
+  padding: 4px 16px 4px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.tableView th {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* barras horizontais como tabela pautada */
+.barTable {
+  width: 100%;
+  border-top: 1px solid var(--ink);
+  border-collapse: collapse;
+}
+
+.barTable th,
+.barTable td {
+  border-bottom: 1px solid var(--rule);
+}
+
+.barName {
+  width: 38%;
+  padding: 11px 12px 11px 0;
+  font-size: 18px;
+  font-weight: 400;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.barName > span:last-child {
+  display: inline-grid;
+}
+
+.barName small {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 9px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--swatch);
+  vertical-align: 0.15em;
+}
+
+/* a célula continua célula de tabela (os fios das linhas batem); o flex fica dentro */
+.barCell {
+  padding: 11px 0;
+  vertical-align: middle;
+}
+
+.barInner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.barTrack {
+  flex: 1;
+  min-width: 40px;
+  border-bottom: 1px dashed var(--rule-strong);
+}
+
+.bar {
+  display: block;
+  height: 10px;
+  min-width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--chart-bar);
+}
+
+.barValue {
+  flex: 0 0 auto;
+  min-width: 80px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .barName {
+    width: 44%;
+  }
+
+  .columnTick {
+    font-size: 10px;
+  }
+
+  .plot {
+    padding-left: 46px;
+  }
+
+  .grid {
+    left: 46px;
+  }
+}

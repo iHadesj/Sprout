@@ -1,0 +1,23 @@
+.page {
+  display: grid;
+  gap: 10px;
+  width: min(calc(100% - 32px), 640px);
+  margin: 0 auto;
+  padding: 72px 0;
+}
+
+.body {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+
+.lead {
+  color: var(--ink-2);
+  font-size: 18px;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-style: italic;
+}

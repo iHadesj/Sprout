@@ -1,0 +1,18 @@
+.ruler {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.tick {
+  width: 100%;
+  max-width: 22px;
+  height: 14px;
+  border: 1px solid var(--ink);
+  transform-origin: bottom;
+}
+
+.tick[data-on] {
+  background: var(--herb);
+  border-color: var(--herb);
+}

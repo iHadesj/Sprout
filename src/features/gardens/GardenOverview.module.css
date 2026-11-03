@@ -1,0 +1,110 @@
+.sheet {
+  display: grid;
+  gap: 22px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.header {
+  display: grid;
+  gap: 4px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+.meta :global(.mono) {
+  font-size: 14px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+}
+
+/* régua de crescimento: 10 tracinhos, os de tinta são o que já cresceu */
+.records {
+  margin: 8px 0 0;
+}
+
+.record {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.record dt {
+  color: var(--ink-2);
+}
+
+.leader {
+  flex: 1;
+  border-bottom: 2px dotted var(--rule-strong);
+  transform: translateY(-4px);
+}
+
+.record dd {
+  margin: 0;
+  font-size: 16px;
+}
+
+.seal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: center;
+  color: var(--ink-2);
+}
+
+.seal strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* anotação na margem: sépia, em itálico, com um fio à esquerda */
+.margin {
+  padding-left: 14px;
+  border-left: 2px solid var(--sepia);
+  color: var(--sepia);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.archive {
+  padding-top: 6px;
+  border-top: 1px solid var(--rule);
+}
+
+.archiveConfirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  color: var(--ink-2);
+  font-size: 15px;
+}

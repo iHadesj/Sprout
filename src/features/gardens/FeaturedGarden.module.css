@@ -1,0 +1,100 @@
+/* prancha grande: a ilha emoldurada à esquerda, a etiqueta e a ação à direita */
+.featured {
+  display: grid;
+  gap: 20px 40px;
+  align-items: center;
+}
+
+@media (min-width: 880px) {
+  .featured {
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
+  }
+}
+
+.plate {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+/* mesma moldura com cantoneiras da página do jardim */
+.frame {
+  position: relative;
+  height: clamp(280px, 42vw, 400px);
+  border: 1px solid var(--ink);
+  background: var(--paper-card);
+}
+
+.frame::before,
+.frame::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-color: var(--ink);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.frame::before {
+  top: 6px;
+  left: 6px;
+  border-width: 1px 0 0 1px;
+}
+
+.frame::after {
+  right: 6px;
+  bottom: 6px;
+  border-width: 0 1px 1px 0;
+}
+
+.caption {
+  color: var(--ink-2);
+  font-size: 16px;
+  text-align: right;
+}
+
+.text {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+
+.text > :global(*) {
+  max-width: 100%;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1.1;
+}
+
+.dot {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+}
+
+.meta {
+  margin-top: -6px;
+  color: var(--ink-2);
+}
+
+.note {
+  color: var(--sepia);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  margin-top: 4px;
+}

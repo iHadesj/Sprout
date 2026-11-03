@@ -1,0 +1,56 @@
+/* bilhetinho de presente: papel claro, levemente torto, com um coração em carimbo */
+.note {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px solid var(--rule-strong);
+  background: #fffaf0;
+  box-shadow: 0 10px 22px -16px rgba(60, 40, 20, 0.4);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--stamp);
+  border-radius: 50%;
+  color: var(--stamp);
+}
+
+.body {
+  display: grid;
+  gap: 2px;
+}
+
+.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 19px;
+}
+
+.replay {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .note {
+    grid-template-columns: auto 1fr;
+  }
+
+  .replay {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

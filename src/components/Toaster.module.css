@@ -1,0 +1,32 @@
+.stack {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(calc(100% - 32px), 440px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 18px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-xs);
+  background: var(--paper-card);
+  box-shadow: var(--sheet-shadow);
+  font-size: 16px;
+}
+
+.toast[data-kind='success'] :global(.kicker) {
+  color: var(--herb);
+}
+
+.toast[data-kind='error'] :global(.kicker) {
+  color: var(--stamp);
+}

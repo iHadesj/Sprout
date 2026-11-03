@@ -1,0 +1,114 @@
+.shell {
+  --header-h: 64px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+}
+
+.header {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  width: min(calc(100% - 32px), 1240px);
+  height: var(--header-h);
+  margin: 0 auto;
+  padding-top: 18px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.brand {
+  position: relative;
+  margin-right: auto;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.subtitle {
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.badge {
+  position: absolute;
+  top: 2px;
+  right: -9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--stamp);
+}
+
+/* "da nanda" escrito a lápis por cima do título, torto, como anotação de quem é o caderno */
+.scribble {
+  position: absolute;
+  top: -9px;
+  left: 44px;
+  color: var(--ink-3);
+  font-family: 'Caveat', var(--font-serif);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 0.72;
+  transform: rotate(-13deg);
+  pointer-events: none;
+}
+
+.nav {
+  display: flex;
+  gap: 22px;
+}
+
+.link {
+  position: relative;
+  padding: 4px 0 8px;
+  color: var(--ink-2);
+  font-size: 17px;
+  text-decoration: none;
+}
+
+.link:hover,
+.link[aria-current='page'] {
+  color: var(--ink);
+}
+
+.underline {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--ink);
+}
+
+.short {
+  display: none;
+}
+
+.main {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .subtitle,
+  .full {
+    display: none;
+  }
+
+  .short {
+    display: inline;
+  }
+
+  .nav {
+    gap: 16px;
+  }
+}

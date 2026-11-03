@@ -1,0 +1,198 @@
+/* página dupla: prancha à esquerda, ficha à direita, com a dobra do caderno no meio */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  width: min(calc(100% - 32px), 1240px);
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+@media (min-width: 960px) {
+  .page {
+    grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr);
+    gap: 0;
+    height: calc(100dvh - 64px);
+    padding: 24px 0;
+  }
+}
+
+.plate {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  /* sem isto, ao sair do foco em tela cheia o canvas (ainda com a largura da tela) empurra a coluna */
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+@media (min-width: 960px) {
+  .plate {
+    padding-right: 32px;
+    border-right: 1px solid var(--rule);
+    /* sombra da dobra entre as duas páginas */
+    background: linear-gradient(to left, rgba(90, 70, 40, 0.07), transparent 28px);
+  }
+}
+
+/* moldura fina com cantoneiras, como uma gravura colada na página */
+.frame {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  height: min(46dvh, 400px);
+  min-height: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper-card);
+}
+
+@media (min-width: 960px) {
+  .frame {
+    height: auto;
+  }
+}
+
+.frame::before,
+.frame::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-color: var(--ink);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.frame::before {
+  top: 6px;
+  left: 6px;
+  border-width: 1px 0 0 1px;
+}
+
+.frame::after {
+  right: 6px;
+  bottom: 6px;
+  border-width: 0 1px 1px 0;
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+.sheet {
+  min-width: 0;
+  overflow-y: auto;
+}
+
+@media (min-width: 960px) {
+  .sheet {
+    padding: 0 4px 24px 40px;
+  }
+}
+
+.status {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 64px 16px;
+  color: var(--ink-2);
+  font-style: italic;
+  text-align: center;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  height: 100%;
+  padding: 24px;
+}
+
+.placeholder svg {
+  width: min(60%, 280px);
+  height: auto;
+}
+
+.sceneBox {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* modo imersivo (foco e revisão): a prancha vira o fundo da tela inteira */
+.page[data-immersive] .plate {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.page[data-immersive] .frame {
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.page[data-immersive] .frame::before,
+.page[data-immersive] .frame::after,
+.page[data-immersive] .caption {
+  display: none;
+}
+
+.page[data-immersive] .sheet {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  overflow: visible;
+}
+
+@media (min-width: 960px) {
+  .page[data-immersive] .sheet {
+    grid-column: 2;
+  }
+}
+
+/* celular: a ficha do foco desce pro pé da tela, e a árvore aparece em cima */
+@media (max-width: 959px) {
+  .page[data-immersive] {
+    min-height: calc(100dvh - 88px);
+  }
+
+  .page[data-immersive] .sheet {
+    align-content: end;
+  }
+}
+
+/* a árvore morreu: a prancha perde a cor por um instante */
+.page[data-withered] .frame {
+  animation: wither 2.6s ease both;
+}
+
+@keyframes wither {
+  0% {
+    filter: none;
+  }
+  35% {
+    filter: saturate(0.2) sepia(0.3);
+  }
+  100% {
+    filter: saturate(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page[data-withered] .frame {
+    animation: none;
+  }
+}

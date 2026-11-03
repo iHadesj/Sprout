@@ -1,0 +1,142 @@
+.sheet {
+  display: grid;
+  gap: 22px;
+  padding-top: 4px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.header {
+  display: grid;
+  gap: 4px;
+}
+
+.meta {
+  color: var(--ink-2);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper-card);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+}
+
+.records {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.records > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.records dt {
+  color: var(--ink-2);
+}
+
+.records dd {
+  margin: 0;
+}
+
+.gifts {
+  display: grid;
+  gap: 14px;
+}
+
+.giftRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.hint {
+  color: var(--ink-3);
+  font-size: 15px;
+  font-style: italic;
+}
+
+/* contador de corações: − [999] + */
+.counter {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  background: var(--paper-card);
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.step:hover {
+  background: var(--paper-deep);
+}
+
+.amount {
+  width: 56px;
+  padding: 8px 0;
+  border: 0;
+  border-inline: 1px solid var(--rule-strong);
+  background: none;
+  color: var(--stamp);
+  font-size: 18px;
+  text-align: center;
+}
+
+.amount:focus-visible {
+  outline: 2px solid var(--herb);
+  outline-offset: -2px;
+}

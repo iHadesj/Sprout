@@ -1,0 +1,109 @@
+.form {
+  display: grid;
+  gap: 22px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field legend {
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+/* amostras de cor como bolinhas de aquarela; a escolhida ganha um círculo de tinta */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  border: 1px solid rgba(42, 40, 35, 0.35);
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  appearance: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.swatch:checked {
+  box-shadow:
+    0 0 0 3px var(--paper-card),
+    0 0 0 4.5px var(--ink);
+}
+
+.biomes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--ink);
+}
+
+.biome {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.biome + .biome {
+  border-left: 1px solid var(--ink);
+}
+
+.biome input {
+  position: absolute;
+  opacity: 0;
+}
+
+.biome small {
+  color: var(--ink-3);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.biome:has(input:checked) {
+  background: var(--ink);
+  color: var(--paper-card);
+}
+
+.biome:has(input:checked) small {
+  color: var(--rule);
+}
+
+.biome:has(input:focus-visible) {
+  outline: 2px solid var(--herb);
+  outline-offset: 2px;
+}
+
+.times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.rangeLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.hint {
+  margin-top: -12px;
+  color: var(--ink-3);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.error {
+  color: var(--stamp);
+}

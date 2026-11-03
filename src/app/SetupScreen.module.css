@@ -1,0 +1,26 @@
+.page {
+  display: grid;
+  gap: 14px;
+  width: min(calc(100% - 32px), 620px);
+  margin: 64px auto;
+}
+
+.page h1 em {
+  font-style: italic;
+}
+
+.page code {
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.art {
+  width: 150px;
+}
+
+.note {
+  color: var(--ink-2);
+}

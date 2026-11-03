@@ -1,0 +1,66 @@
+/* ficha do pesquisador: registros pautados e um formulário de linhas sublinhadas */
+.page {
+  display: grid;
+  gap: 32px;
+  width: min(calc(100% - 32px), 640px);
+  margin: 0 auto;
+  padding: 36px 0 72px;
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+}
+
+.records {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.records > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.records dt {
+  color: var(--ink-2);
+}
+
+.records dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.section {
+  display: grid;
+  gap: 14px;
+}
+
+.form {
+  display: grid;
+  gap: 22px;
+}
+
+.form label {
+  display: grid;
+  gap: 6px;
+}
+
+.form label > span {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.form small {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-style: italic;
+}
