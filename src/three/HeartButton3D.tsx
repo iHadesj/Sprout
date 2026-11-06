@@ -1,17 +1,13 @@
 // Coração 3D do botão de carinho (visita): o mesmo coração facetado do entalhe, girando devagar
-// sobre uma sombrinha. Cada vez que `taps` muda (um toque, ou cada passada segurando), ele pula:
-// sobe, dá meia volta e, ao cair, achata e volta com mola. Segurando, fica quicando.
-// Com "reduzir movimento", só dá uma apertadinha no lugar. Quem é o botão é o HeartTap; aqui
-// é só o desenho (o canvas não recebe clique).
+// sobre uma sombrinha. Cada vez que `taps` muda (um toque, ou cada passada segurando), ele dá
+// uma apertadinha no lugar e gira um pouco, sem subir enquanto o botão está pressionado.
+// Quem é o botão é o HeartTap; aqui é só o desenho (o canvas não recebe clique).
 import { useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { NeutralToneMapping, type Group } from 'three'
 import { createFacetMaterial } from './facetMaterial'
 import { heartGeometry } from './heart'
-
-const GRAVITY = 16
-const JUMP = 3.4
 
 export default function HeartButton3D({ taps, motion }: { taps: number; motion: boolean }) {
   return (
@@ -48,18 +44,17 @@ function Heart({ taps, motion }: { taps: number; motion: boolean }) {
 
   const ref = useRef<Group>(null)
   const invalidate = useThree((s) => s.invalidate)
-  // altura e velocidade do pulo, achatamento (mola) e giro
-  const s = useRef({ y: 0, vy: 0, squash: 0, sv: 0, yaw: 0, spin: 0, seen: taps })
+  // achatamento (mola) e giro, sempre no mesmo lugar
+  const s = useRef({ squash: 0, sv: 0, yaw: 0, spin: 0, seen: taps })
 
-  // cada toque: impulso pra cima (no ar, um empurrãozinho menor) e meia volta a mais
+  // cada toque: uma pequena pressão e meia volta a mais
   useEffect(() => {
     const st = s.current
     if (taps === st.seen) return
     st.seen = taps
     if (motion) {
-      st.vy = st.y > 0.02 ? Math.max(st.vy, JUMP * 0.7) : JUMP
       st.spin += Math.PI
-      st.sv -= 2.5 // antecipação: encolhe antes de subir
+      st.sv -= 2.5 // antecipação: encolhe antes de voltar ao tamanho normal
     } else {
       st.sv -= 3
     }
@@ -71,14 +66,6 @@ function Heart({ taps, motion }: { taps: number; motion: boolean }) {
     if (!g) return
     const d = Math.min(rawDelta, 0.05)
     const st = s.current
-    // pulo com gravidade; ao tocar o chão, a velocidade da queda vira achatamento
-    st.vy -= GRAVITY * d
-    st.y += st.vy * d
-    if (st.y <= 0) {
-      if (st.vy < -1) st.sv += st.vy * 0.9
-      st.y = 0
-      st.vy = 0
-    }
     // achatamento: mola amortecida de volta pro 0
     st.sv += (-st.squash * 260 - st.sv * 14) * d
     st.squash += st.sv * d
@@ -87,7 +74,7 @@ function Heart({ taps, motion }: { taps: number; motion: boolean }) {
     st.yaw += (target - st.yaw) * Math.min(1, d * 7)
     if (motion) st.spin += d * 0.5
     const k = Math.max(-0.35, Math.min(0.35, st.squash))
-    g.position.y = st.y * 0.32
+    g.position.y = 0
     g.scale.set(1 - k * 0.6, 1 + k, 1 - k * 0.6)
     g.rotation.set(0.12, st.yaw, 0)
     if (!motion && (Math.abs(st.squash) > 0.001 || Math.abs(st.sv) > 0.001)) invalidate()

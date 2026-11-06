@@ -2,8 +2,8 @@
 // anterior, até 64 por vez), dá pra mandar centenas. Os corações juntam e vão pro servidor em
 // lotes (até 999 por envio, o limite do banco), uns instantes depois: tocar 50 vezes não vira
 // 50 requisições. Cada envio solta coraçõezinhos "+N" do botão e (via onSent) na ilha.
-// O botão é um coração 3D que pula a cada toque (carregado à parte; até ele chegar, ou sem
-// WebGL, fica o coração desenhado).
+// O botão é um coração 3D que reage no lugar a cada toque (carregado à parte; até ele chegar,
+// ou sem WebGL, fica o coração desenhado).
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
@@ -112,7 +112,7 @@ export function HeartTap({ to, onSent }: { to: string; onSent: (amount: number) 
             <HeartIcon size={38} filled />
           </span>
         </motion.button>
-        {/* o coração 3D fica por cima do botão, maior que ele (pra caber o pulo); não recebe clique */}
+        {/* o coração 3D fica por cima do botão e não recebe clique */}
         <span className={styles.three} aria-hidden="true">
           <ErrorBoundary fallback={null}>
             <Suspense fallback={null}>
