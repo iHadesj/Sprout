@@ -8,7 +8,7 @@ import { BufferAttribute, CylinderGeometry, Group } from 'three'
 import { carvingTexture } from './carving'
 import { createFacetMaterial, type FacetMaterial } from './facetMaterial'
 import { heartGeometry } from './heart'
-import type { IslandShape, Spot } from './islandGeometry'
+import type { IslandShape } from './islandGeometry'
 import { OLD_TREE, oldTreeBandRadius, oldTreeGeometry } from './treeGeometry'
 
 /** Abertura (em radianos) do pedaço de casca com o entalhe. */
@@ -29,25 +29,9 @@ function carvingGeometry() {
   return geometry
 }
 
-/** Lugar livre na frente da ilha (a câmera fica no +z), longe das plantas e da placa do selo. */
-function freestSpot(radius: number, spots: Spot[]) {
-  let best = { x: 0, z: 0, score: -Infinity }
-  const reach = radius * 0.7
-  const taken = [...spots, { position_x: 0, position_z: radius * 0.78 }]
-  for (let gx = -reach; gx <= reach; gx += 0.2) {
-    for (let gz = -reach; gz <= reach; gz += 0.2) {
-      if (Math.hypot(gx, gz) > reach) continue
-      const gap = taken.reduce((min, p) => Math.min(min, Math.hypot(p.position_x - gx, p.position_z - gz)), 3)
-      const score = Math.min(gap, 1.3) - Math.hypot(gx + radius * 0.25, gz - radius * 0.45) * 0.2
-      if (score > best.score) best = { x: gx, z: gz, score }
-    }
-  }
-  return best
-}
-
 interface OldTreeProps {
-  radius: number
-  spots: Spot[]
+  /** onde ela fica na ilha (ver oldTreeSpot.ts) */
+  place: { x: number; z: number }
   heightAt: IslandShape['heightAt']
   /** o mesmo material das árvores (vento igual) */
   material: FacetMaterial
@@ -58,7 +42,7 @@ interface OldTreeProps {
 
 let nextPop = 0
 
-export function OldTree({ radius, spots, heightAt, material, motion, snowy = false }: OldTreeProps) {
+export function OldTree({ place, heightAt, material, motion, snowy = false }: OldTreeProps) {
   const geometry = oldTreeGeometry(snowy)
   const carving = useMemo(() => carvingGeometry(), [])
   const carvingMaterial = useMemo(() => {
@@ -84,7 +68,6 @@ export function OldTree({ radius, spots, heightAt, material, motion, snowy = fal
     [carving, carvingMaterial, heart],
   )
 
-  const place = useMemo(() => freestSpot(radius, spots), [radius, spots])
   const [pops, setPops] = useState<number[]>([])
 
   useFrame(({ clock }) => {

@@ -520,6 +520,8 @@ O que mudou em relação ao texto acima, e por quê. As migrations em `supabase/
 
 - `src/features/surprise/surprise.ts`: a árvore velha (com neve em cima no bioma neve) aparece nos jardins de duas contas, pelo id do dono do jardim (o id não muda, o nome de usuário pode mudar): nos jardins de qualquer uma das duas, pra quem estiver olhando. Nada no banco e nada que mexa em regra.
 - Antes era um link `?ref=` que marcava o navegador; isso vazava pra outra conta no mesmo navegador. O link antigo agora só é limpo da barra.
+- Cervinho (2026-11-15): nos mesmos jardins da árvore velha, menos no cerrado, toda vez que o jardim abre um filhote chega pulando, para ao lado da árvore, olha pra câmera e corre pra trás do tronco, onde some. A câmera abre de perto no palco dele e se afasta depois. Não aparece durante o foco nem com "reduzir movimento". Arquivos: `src/three/Fawn.tsx` (boneco e cena), `fawnGeometry.ts` (as partes, facetadas), `fawnMotion.ts` (poses, linha do tempo e caminhos, em funções puras com testes) e `oldTreeSpot.ts` (lugar da árvore, usado pelos dois).
+- O sumiço funciona de qualquer ângulo porque não depende de esconder o bicho inteiro: um plano de corte passa pela câmera e pelo meio do tronco, e o que cruza pro outro lado não é desenhado. A borda do corte fica sempre atrás do tronco.
 
 **Página principal em blocos e mais interações (2026-11-03)**
 

@@ -10,6 +10,8 @@ import { biomeOf } from '../features/gardens/gardenOptions'
 import type { Garden, GardenFlower, Plant } from '../lib/api'
 import { HeartFountain } from './CheerEffects'
 import { FriendFlowers } from './FriendFlowers'
+import { Fawn } from './Fawn'
+import { planFawn, type FawnPlan } from './fawnMotion'
 import { GiftEffects, type GiftShow } from './GiftEffects'
 import { Grass } from './Grass'
 import { HonestySign } from './HonestySign'
@@ -17,9 +19,10 @@ import { Island } from './Island'
 import { SceneLights } from './SceneLights'
 import { buildIsland, islandDepth, islandRadius } from './islandGeometry'
 import { OldTree } from './OldTree'
+import { oldTreeSpot } from './oldTreeSpot'
 import { FallingLeaves, PetalBurst, Snowfall, type Burst } from './Particles'
 import { GrowingPlant, PlantField } from './Plant'
-import { hashString } from './random'
+import { clamp, hashString } from './random'
 import { useSceneMaterials } from './useSceneMaterials'
 import { useSpots } from './useSpots'
 
@@ -48,6 +51,8 @@ export interface GardenSceneProps {
 }
 
 const FOV = 38
+/** Até onde dá pra chegar perto enquanto o cervinho da surpresa está em cena (e logo depois). */
+const CLOSE_UP_DISTANCE = 2.2
 
 /**
  * Enquadramento geral: câmera um pouco acima da ilha (dá pra ver a terra embaixo) e longe
@@ -130,6 +135,31 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
   const island = useMemo(() => buildIsland(radius, biome, garden.color, seed, spots), [radius, biome, garden.color, seed, spots])
   useDevExpose()
 
+  // Surpresa: a árvore velha e, a cada vez que o jardim abre, o cervinho que corre pra trás dela.
+  // Ele não aparece no cerrado, nem durante o foco, nem com "reduzir movimento".
+  const treePlace = useMemo(() => oldTreeSpot(radius, spots), [radius, spots])
+  const [fawnSeen, setFawnSeen] = useState<string | null>(null)
+  // a câmera chega perto pra ver o cervinho; depois que ele some, ela ainda precisa poder se afastar devagar
+  const [closeUp, setCloseUp] = useState(false)
+  const fawnWaiting = oldTree && motion && biome !== 'cerrado' && fawnSeen !== garden.id
+  const endFawn = useCallback(() => {
+    setFawnSeen(garden.id)
+    setCloseUp(true)
+  }, [garden.id])
+  // começou um foco: a vez do cervinho passou (ele é só da abertura do jardim)
+  if (fawnWaiting && focusMode) endFawn()
+  const fawnOn = fawnWaiting && !focusMode
+  const fawnPlan = useMemo(() => {
+    if (!fawnOn) return null
+    // o palco é montado pra câmera do enquadramento geral (ela fica no +z)
+    const camera = defaultCamera(radius, 1).position
+    const away = Math.hypot(camera.x - treePlace.x, camera.z - treePlace.z)
+    const toCamera = { x: (camera.x - treePlace.x) / away, z: (camera.z - treePlace.z) / away }
+    const obstacles = [...spots.map((p) => ({ x: p.position_x, z: p.position_z })), { x: 0, z: radius * 0.78 }]
+    return planFawn(treePlace, toCamera, radius, obstacles)
+  }, [fawnOn, radius, treePlace, spots])
+  const farEnough = useCallback(() => setCloseUp(false), [])
+
   return (
     <>
       <SceneLights radius={radius} biome={biome} />
@@ -151,7 +181,8 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
         {bursts.map((burst) => (
           <PetalBurst key={burst.id} burst={burst} onDone={removeBurst} />
         ))}
-        {oldTree && <OldTree radius={radius} spots={spots} heightAt={island.heightAt} material={materials.plant} motion={motion} snowy={biome === 'neve'} />}
+        {oldTree && <OldTree place={treePlace} heightAt={island.heightAt} material={materials.plant} motion={motion} snowy={biome === 'neve'} />}
+        {fawnPlan && <Fawn key={garden.id} plan={fawnPlan} tree={treePlace} heightAt={island.heightAt} onDone={endFawn} />}
         {sealLevel > 0 && (
           <HonestySign level={sealLevel as 1 | 2 | 3} radius={radius} spots={spots} heightAt={island.heightAt} material={materials.island} />
         )}
@@ -181,14 +212,20 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
         enablePan={false}
         enableZoom={!compact}
         enableDamping
-        minDistance={radius + 1.5}
+        minDistance={fawnPlan || closeUp ? CLOSE_UP_DISTANCE : radius + 1.5}
         maxDistance={radius * 2.8 + 6}
         minPolarAngle={0.3}
         maxPolarAngle={1.3}
-        autoRotate={motion && !focusMode}
+        autoRotate={motion && !focusMode && !fawnPlan}
         autoRotateSpeed={0.35}
       />
-      <CameraRig radius={radius} focus={focusMode && growing ? [growing.position_x, growing.position_z] : null} />
+      <CameraRig
+        radius={radius}
+        focus={focusMode && growing ? [growing.position_x, growing.position_z] : null}
+        intro={fawnPlan}
+        tree={treePlace}
+        onFar={closeUp ? farEnough : undefined}
+      />
     </>
   )
 }
@@ -198,8 +235,18 @@ function leafColors(gardenColor: string) {
   return ['#5f9a45', '#86b85d', gardenColor, '#3f7f3a', '#c9b45a', '#71ad4f', '#a9cf76', gardenColor]
 }
 
-/** Leva a câmera suavemente até o enquadramento certo (geral, ou de perto no foco). */
-function CameraRig({ radius, focus }: { radius: number; focus: [number, number] | null }) {
+interface CameraRigProps {
+  radius: number
+  focus: [number, number] | null
+  /** o cervinho da surpresa em cena: a câmera abre de perto, no palco dele ao lado da árvore */
+  intro: FawnPlan | null
+  tree: { x: number; z: number }
+  /** avisa quando a câmera já se afastou o bastante pro limite normal de zoom voltar */
+  onFar?: () => void
+}
+
+/** Leva a câmera suavemente até o enquadramento certo (geral, de perto no foco, ou no cervinho). */
+function CameraRig({ radius, focus, intro, tree, onFar }: CameraRigProps) {
   const camera = useThree((s) => s.camera)
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height))
   const controls = useThree((s) => s.controls) as unknown as
@@ -207,6 +254,17 @@ function CameraRig({ radius, focus }: { radius: number; focus: [number, number] 
     | null
   const [fx, fz] = focus ?? [NaN, NaN]
   const goal = useMemo(() => {
+    if (Number.isNaN(fx) && intro) {
+      // perto o bastante pro cervinho aparecer bem, longe o bastante pra caber ele e o tronco
+      const halfV = ((FOV / 2) * Math.PI) / 180
+      const halfH = Math.atan(Math.tan(halfV) * aspect)
+      const wide = defaultCamera(radius, aspect)
+      const distance = clamp(Math.max(0.95 / Math.tan(halfV), 1.4 / Math.tan(halfH)), 2.8, wide.position.distanceTo(wide.target))
+      const target = new Vector3((tree.x + intro.stop.x) / 2, 0.45, (tree.z + intro.stop.z) / 2)
+      const elevation = 0.32
+      const back = new Vector3(intro.toCamera.x * Math.cos(elevation), Math.sin(elevation), intro.toCamera.z * Math.cos(elevation))
+      return { position: target.clone().addScaledVector(back, distance), target }
+    }
     if (Number.isNaN(fx)) return defaultCamera(radius, aspect)
     // foco imersivo: a cena ocupa a tela toda e a etiqueta do timer fica à direita (em tela larga),
     // então a câmera mira um pouco à direita da planta, que aparece à esquerda da etiqueta
@@ -218,13 +276,14 @@ function CameraRig({ radius, focus }: { radius: number; focus: [number, number] 
     // tela em pé: a ficha fica embaixo, então a planta sobe no enquadramento
     if (aspect < 1) target.y -= 1.1
     return { position: target.clone().add(offset), target }
-  }, [fx, fz, radius, aspect])
+  }, [fx, fz, radius, aspect, intro, tree])
 
-  // primeira vez: já começa no lugar certo, sem a câmera "viajar" ao abrir a tela
-  const placed = useRef(false)
+  // primeira vez: já começa no lugar certo, sem a câmera "viajar" ao abrir a tela.
+  // Os controles chegam um instante depois da câmera; o alvo deles também começa no lugar.
+  const placed = useRef<'no' | 'camera' | 'all'>('no')
   useLayoutEffect(() => {
-    if (placed.current) return
-    placed.current = true
+    if (placed.current === 'all') return
+    placed.current = controls ? 'all' : 'camera'
     camera.position.copy(goal.position)
     if (controls) controls.target.copy(goal.target)
     camera.lookAt(goal.target)
@@ -245,6 +304,7 @@ function CameraRig({ radius, focus }: { radius: number; focus: [number, number] 
   }, [controls])
 
   useFrame((_, delta) => {
+    if (onFar && controls && camera.position.distanceTo(controls.target) >= radius + 1.6) onFar()
     if (!moving.current) return
     const k = 1 - Math.exp(-delta * 2.2)
     camera.position.lerp(goal.position, k)

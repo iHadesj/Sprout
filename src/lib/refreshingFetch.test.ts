@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createRefreshingFetch } from './refreshingFetch'
+import { AuthApiError, AuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js'
+import { createRefreshingFetch, renewToken } from './refreshingFetch'
 
 const expired = () => new Response(JSON.stringify({ code: 'PGRST303', message: 'JWT expired' }), { status: 401 })
 const ok = () => new Response('[]', { status: 200 })
@@ -67,5 +68,44 @@ describe('createRefreshingFetch', () => {
 
     expect(responses.map((r) => r.status)).toEqual([200, 200, 200])
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('renewToken', () => {
+  const session = (access_token: string) => ({ data: { session: { access_token } }, error: null })
+  const failed = (error: Error) => ({ data: { session: null, user: null }, error })
+  const deadSession = new AuthApiError('Invalid Refresh Token', 400, 'refresh_token_not_found')
+  const fakeAuth = (refresh: unknown, stored: unknown) => {
+    const signOut = vi.fn(async () => ({ error: null }))
+    const auth = {
+      refreshSession: async () => refresh,
+      getSession: async () => stored,
+      signOut,
+    } as unknown as Pick<SupabaseClient['auth'], 'refreshSession' | 'getSession' | 'signOut'>
+    return { auth, signOut }
+  }
+
+  it('usa o token renovado', async () => {
+    const { auth, signOut } = fakeAuth(session('novo'), session('velho'))
+    expect(await renewToken(auth, 'velho')).toBe('novo')
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('usa o token salvo por outra aba quando a própria renovação falha', async () => {
+    const { auth, signOut } = fakeAuth(failed(deadSession), session('outra-aba'))
+    expect(await renewToken(auth, 'velho')).toBe('outra-aba')
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('desloga quando a sessão morreu, mesmo com o aparelho achando que o token vale', async () => {
+    const { auth, signOut } = fakeAuth(failed(deadSession), session('velho'))
+    expect(await renewToken(auth, 'velho')).toBeNull()
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
+  })
+
+  it('mantém o login quando a falha é só falta de rede', async () => {
+    const { auth, signOut } = fakeAuth(failed(new AuthRetryableFetchError('Failed to fetch', 0)), session('velho'))
+    expect(await renewToken(auth, 'velho')).toBeNull()
+    expect(signOut).not.toHaveBeenCalled()
   })
 })
