@@ -3,27 +3,39 @@
 // árvores do fundo de papel. Pouca luz "geral": é o contraste entre as faces que faz o low poly
 // aparecer.
 //
-// O sol fica alto (perto do meio-dia): as sombras ficam curtas, debaixo de cada árvore, em vez
-// de compridas cruzando a ilha. A borda da sombra é macia (PCF com raio).
-// Na neve a luz é mais branca e a sombra mais azul (senão o branco vira bege).
+// A cor e a altura do sol vêm da hora do relógio (`daylight.ts`): de manhã ele é baixo e
+// quente, ao meio-dia alto e claro, no fim da tarde dourado com sombra comprida, de noite vira
+// um azul de luar. Quem não passa `light` (login, viveiro) fica no meio-dia de sempre.
+//
+// A caixa da sombra cresce quando o sol baixa: sombra comprida que saísse da caixa
+// simplesmente não seria desenhada.
 import type { Biome } from '../features/gardens/gardenOptions'
+import { daylightAt, shadowReach, type Daylight } from './daylight'
 
-const LIGHT: Record<'warm' | 'snow', { sky: string; ground: string; sun: string; sunIntensity: number; rim: string }> = {
-  warm: { sky: '#fff1d6', ground: '#6f7f99', sun: '#ffe6bd', sunIntensity: 2.9, rim: '#cfe0ff' },
-  snow: { sky: '#f4f8ff', ground: '#7d90b0', sun: '#fff6ea', sunIntensity: 2.6, rim: '#d8e6ff' },
+interface SceneLightsProps {
+  /** tamanho da ilha, pra caixa da sombra cobrir tudo */
+  radius?: number
+  biome?: Biome
+  /** a luz daquela hora; sem ela, meio-dia */
+  light?: Daylight
 }
 
-/** `radius` = tamanho da ilha, pra caixa da sombra cobrir tudo. */
-export function SceneLights({ radius = 6, biome = 'campo' }: { radius?: number; biome?: Biome }) {
-  const light = LIGHT[biome === 'neve' ? 'snow' : 'warm']
-  const shadow = radius + 1.6
+export function SceneLights({ radius = 6, biome = 'campo', light }: SceneLightsProps) {
+  const day = light ?? daylightAt(12, biome)
+  const shadow = radius + 1.6 + shadowReach(day.elevation, radius)
+  // o sol fica longe o bastante pra estar sempre fora da ilha, na direção que a hora manda
+  const far = radius * 2 + 12
+  const sun: [number, number, number] = [day.direction.x * far, day.direction.y * far, day.direction.z * far]
+  // contraluz: do lado oposto ao sol e atrás da ilha
+  const rim: [number, number, number] = [-day.direction.x * (radius + 3), radius * 0.5 + 2, -(radius + 4)]
+
   return (
     <>
-      <hemisphereLight args={[light.sky, light.ground, 0.85]} />
+      <hemisphereLight args={[day.sky, day.ground, day.hemisphere]} />
       <directionalLight
-        position={[radius * 0.55 + 2, radius * 1.6 + 10, radius * 0.4 + 2.5]}
-        color={light.sun}
-        intensity={light.sunIntensity}
+        position={sun}
+        color={day.sun}
+        intensity={day.sunIntensity}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-radius={5}
@@ -35,9 +47,9 @@ export function SceneLights({ radius = 6, biome = 'campo' }: { radius?: number; 
         shadow-camera-top={shadow}
         shadow-camera-bottom={-shadow}
         shadow-camera-near={0.5}
-        shadow-camera-far={radius * 5 + 30}
+        shadow-camera-far={radius * 5 + 30 + far}
       />
-      <directionalLight position={[-radius - 2, radius * 0.5 + 2, -radius - 4]} color={light.rim} intensity={1.1} />
+      <directionalLight position={rim} color={day.rim} intensity={day.rimIntensity} />
     </>
   )
 }

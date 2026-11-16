@@ -20,7 +20,10 @@ import { SceneLights } from './SceneLights'
 import { buildIsland, islandDepth, islandRadius } from './islandGeometry'
 import { OldTree } from './OldTree'
 import { oldTreeSpot } from './oldTreeSpot'
-import { FallingLeaves, PetalBurst, Snowfall, type Burst } from './Particles'
+import { FallingLeaves, Fireflies, PetalBurst, Rainfall, Snowfall, type Burst } from './Particles'
+import { daylightAt, hourOf, overcast, seasonalLight } from './daylight'
+import { SEASONS, seasonLook, seasonOf, type Season, type SeasonLook } from './season'
+import { useNow } from '../lib/useNow'
 import { GrowingPlant, PlantField } from './Plant'
 import { clamp, hashString } from './random'
 import { useSceneMaterials } from './useSceneMaterials'
@@ -33,6 +36,8 @@ export interface GardenSceneProps {
   focusMode?: boolean
   /** 3 dias sem sessão: folhas amarelando */
   neglected?: boolean
+  /** uma planta morreu hoje neste jardim: o dia fica chuvoso */
+  raining?: boolean
   /** selo de honestidade: 0 = sem selo, 1 a 3 = bronze, prata, ouro */
   sealLevel?: 0 | 1 | 2 | 3
   /** mostrado se o navegador não tiver WebGL */
@@ -70,7 +75,7 @@ function defaultCamera(radius: number, aspect: number) {
   }
 }
 
-export default function GardenScene({ garden, plants, focusMode = false, neglected = false, sealLevel = 0, fallback, compact = false, gifts = null, oldTree = false, flowers, liveHearts }: GardenSceneProps) {
+export default function GardenScene({ garden, plants, focusMode = false, neglected = false, raining = false, sealLevel = 0, fallback, compact = false, gifts = null, oldTree = false, flowers, liveHearts }: GardenSceneProps) {
   // "reduzir movimento" no sistema: a ilha para de flutuar e girar, sem folhas no ar
   const reducedMotion = useReducedMotion() ?? false
   const radius = islandRadius(plants)
@@ -95,6 +100,7 @@ export default function GardenScene({ garden, plants, focusMode = false, neglect
         radius={radius}
         focusMode={focusMode}
         neglected={neglected}
+        raining={raining}
         sealLevel={sealLevel}
         motion={!reducedMotion}
         compact={compact}
@@ -113,6 +119,7 @@ interface ContentsProps {
   radius: number
   focusMode: boolean
   neglected: boolean
+  raining: boolean
   sealLevel: 0 | 1 | 2 | 3
   motion: boolean
   compact: boolean
@@ -122,14 +129,25 @@ interface ContentsProps {
   liveHearts?: number
 }
 
-function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel, motion, compact, gifts, oldTree, flowers, liveHearts }: ContentsProps) {
+function SceneContents({ garden, plants, radius, focusMode, neglected, raining, sealLevel, motion, compact, gifts, oldTree, flowers, liveHearts }: ContentsProps) {
   const seed = hashString(garden.id)
   const biome = biomeOf(garden.biome)
-  const leaves = useMemo(() => leafColors(garden.color), [garden.color])
+  // no bioma neve é sempre inverno: a ilha já é de neve o ano inteiro
+  const season = useMemo<SeasonLook>(() => seasonLook(biome === 'neve' ? 'inverno' : (forcedSeason() ?? seasonOf())), [biome])
+  const leaves = useMemo(() => leafColors(garden.color, season), [garden.color, season])
   const growing = plants.find((p) => p.status === 'growing') ?? null
   const [bursts, removeBurst] = useAdultBursts(plants, garden.color)
   const depth = islandDepth(radius)
-  const materials = useSceneMaterials(neglected ? 0.85 : 0, motion, depth)
+  // a luz segue o relógio de quem está olhando; conferir de 5 em 5 min basta, a mudança é lenta
+  const clockHour = useNow(5 * 60_000, true, () => hourOf())
+  const hour = forcedHour() ?? clockHour
+  // a hora manda na luz, a estação dá o tom e o dia de perda fecha o céu com chuva
+  // (tudo só aparência: nada aqui muda regra, crescimento nem histórico)
+  const light = useMemo(() => {
+    const day = seasonalLight(daylightAt(hour, biome), season.warmth)
+    return raining ? overcast(day) : day
+  }, [hour, biome, raining, season])
+  const materials = useSceneMaterials({ yellow: neglected ? 0.85 : 0, motion, depth, night: light.night, season })
   // a ilha (e a altura do chão) só é recalculada quando alguma planta nasce num lugar novo
   const spots = useSpots(plants)
   const island = useMemo(() => buildIsland(radius, biome, garden.color, seed, spots), [radius, biome, garden.color, seed, spots])
@@ -162,7 +180,7 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
 
   return (
     <>
-      <SceneLights radius={radius} biome={biome} />
+      <SceneLights radius={radius} biome={biome} light={light} />
 
       <Float enabled={motion} speed={1} rotationIntensity={0.12} floatIntensity={0.35} floatingRange={[-0.06, 0.06]}>
         <Island shape={island} material={materials.island} />
@@ -186,12 +204,19 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
         {sealLevel > 0 && (
           <HonestySign level={sealLevel as 1 | 2 | 3} radius={radius} spots={spots} heightAt={island.heightAt} material={materials.island} />
         )}
+        {/* no bioma neve já está nevando; a perda do dia aparece só no céu fechado */}
         {motion &&
           (biome === 'neve' ? (
             <Snowfall radius={radius} heightAt={island.heightAt} />
+          ) : raining ? (
+            <Rainfall radius={radius} heightAt={island.heightAt} />
           ) : (
-            <FallingLeaves radius={radius} heightAt={island.heightAt} colors={leaves} />
+            <FallingLeaves radius={radius} heightAt={island.heightAt} colors={leaves} count={season.leafCount} />
           ))}
+        {/* vaga-lumes anoitecendo: não aparecem no frio da neve nem debaixo de chuva */}
+        {motion && biome !== 'neve' && !raining && light.night > 0.05 && (
+          <Fireflies radius={radius} heightAt={island.heightAt} night={light.night} />
+        )}
         {gifts && <GiftEffects show={gifts} radius={radius} motion={motion} />}
         {flowers && flowers.length > 0 && <FriendFlowers flowers={flowers} heightAt={island.heightAt} material={materials.plant} />}
         {liveHearts !== undefined && <HeartFountain total={liveHearts} radius={radius} />}
@@ -230,9 +255,22 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, sealLevel
   )
 }
 
-/** Tons das folhas que caem: verdes, um amarelado e, de vez em quando, uma da cor do jardim. */
-function leafColors(gardenColor: string) {
-  return ['#5f9a45', '#86b85d', gardenColor, '#3f7f3a', '#c9b45a', '#71ad4f', '#a9cf76', gardenColor]
+/** Tons das folhas que caem: os da estação e, de vez em quando, uma da cor do jardim. */
+function leafColors(gardenColor: string, season: SeasonLook) {
+  const list = [...season.leafColors]
+  list.splice(Math.floor(list.length / 2), 0, gardenColor)
+  list.push(gardenColor)
+  return list
+}
+
+/**
+ * Só em desenvolvimento: `?estacao=outono` força a estação, pra ver as quatro sem esperar o
+ * ano passar. Em produção é sempre a data de verdade.
+ */
+function forcedSeason(): Season | null {
+  if (!import.meta.env.DEV || typeof location === 'undefined') return null
+  const value = new URLSearchParams(location.search).get('estacao')
+  return SEASONS.find((s) => s === value) ?? null
 }
 
 interface CameraRigProps {
@@ -348,4 +386,14 @@ function useDevExpose() {
       if (window.__sprout3d?.scene === scene) window.__sprout3d = undefined
     }
   }, [scene, gl, camera])
+}
+
+/**
+ * Só em desenvolvimento: `?hora=20` força a hora da luz, pra ver amanhecer, pôr do sol e
+ * noite sem esperar o dia passar. Em produção é sempre o relógio de verdade.
+ */
+function forcedHour(): number | null {
+  if (!import.meta.env.DEV || typeof location === 'undefined') return null
+  const value = Number(new URLSearchParams(location.search).get('hora'))
+  return Number.isFinite(value) && location.search.includes('hora=') ? value : null
 }

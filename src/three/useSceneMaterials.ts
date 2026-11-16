@@ -2,7 +2,9 @@
 import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { DoubleSide } from 'three'
-import { createDeadPlantMaterial, createFacetMaterial, createPlantMaterial, type FacetMaterial } from './facetMaterial'
+import { mixHex } from './daylight'
+import { createDeadPlantMaterial, createFacetMaterial, createPlantMaterial, setRimTint, RIM_DAY, RIM_NIGHT, type FacetMaterial } from './facetMaterial'
+import type { SeasonLook } from './season'
 
 export interface SceneMaterials {
   plant: FacetMaterial
@@ -11,12 +13,20 @@ export interface SceneMaterials {
   grass: FacetMaterial
 }
 
-/**
- * `yellow` = jardim sem sessão há 3 dias: folhas e grama amarelam (nada é apagado).
- * `motion` = falso com "reduzir movimento": o vento para.
- * `depth` = profundidade da ilha: a terra lá embaixo se dissolve no papel.
- */
-export function useSceneMaterials(yellow: number, motion: boolean, depth: number): SceneMaterials {
+export interface SceneMaterialOptions {
+  /** jardim sem sessão há 3 dias: folhas e grama amarelam (nada é apagado) */
+  yellow: number
+  /** falso com "reduzir movimento": o vento para */
+  motion: boolean
+  /** profundidade da ilha: a terra lá embaixo se dissolve no papel */
+  depth: number
+  /** 0 de dia, 1 na noite fechada: o brilho de contorno vira luar */
+  night?: number
+  /** estação do ano: tinge a copa e, mais de leve, a grama */
+  season?: SeasonLook | null
+}
+
+export function useSceneMaterials({ yellow, motion, depth, night = 0, season = null }: SceneMaterialOptions): SceneMaterials {
   const materials = useMemo<SceneMaterials>(
     () => ({
       plant: createPlantMaterial(),
@@ -32,6 +42,23 @@ export function useSceneMaterials(yellow: number, motion: boolean, depth: number
     materials.plant.userData.uniforms.uYellow.value = yellow
     materials.grass.userData.uniforms.uYellow.value = yellow
   }, [materials, yellow])
+
+  // a árvore seca não muda de estação: ela já está fora do ciclo
+  useEffect(() => {
+    const [r, g, b] = season?.tint ?? [1, 1, 1]
+    for (const [material, amount] of [
+      [materials.plant, season?.tintAmount ?? 0],
+      [materials.grass, season?.grassAmount ?? 0],
+    ] as const) {
+      material.userData.uniforms.uSeason.value.setRGB(r, g, b)
+      material.userData.uniforms.uSeasonMix.value = amount
+    }
+  }, [materials, season])
+
+  useEffect(() => {
+    const tint = mixHex(RIM_DAY, RIM_NIGHT, night)
+    for (const material of Object.values(materials)) setRimTint(material, tint)
+  }, [materials, night])
 
   useEffect(() => {
     const u = materials.island.userData.uniforms

@@ -4,7 +4,7 @@
 // (outra sessão aberta, revisão pendente, 1 min depois de pular a pausa) é a FocusScreen.
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { primeChime } from '../../lib/chime'
+import { primeAudio } from '../../lib/audio'
 import { askNotifyPermission } from '../../lib/notify'
 
 export interface FocusRouteState {
@@ -15,7 +15,7 @@ export function useStartFocus() {
   const navigate = useNavigate()
   return useCallback(
     (gardenId: string) => {
-      primeChime()
+      primeAudio()
       askNotifyPermission()
       navigate(`/jardim/${gardenId}/foco`, { state: { autostart: true } satisfies FocusRouteState })
     },

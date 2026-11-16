@@ -9,8 +9,9 @@ import { ButtonLink } from '../../components/Button'
 import { Blob } from '../../components/organic/Blob'
 import { useNow } from '../../lib/useNow'
 import { useFocusStore } from '../../stores/focusStore'
-import { honestySeal, isNeglected } from '../stats/insights'
+import { honestySeal, isNeglected, isRaining } from '../stats/insights'
 import { useGardenStats } from '../stats/queries'
+import { useProfile } from '../account/queries'
 import type { GardenOutletContext } from './gardenContext'
 import { useGardenFlowers } from '../friends/queries'
 import { GardenStage } from './GardenStage'
@@ -24,6 +25,7 @@ export function GardenLayout() {
   const plants = usePlants(gardenId)
   const flowers = useGardenFlowers(gardenId)
   const stats = useGardenStats()
+  const profile = useProfile()
   const now = useNow(60_000, true, Date.now)
   const { pathname } = useLocation()
   // foco e revisão: a cena ocupa a tela toda, atrás da ficha (modo imersivo)
@@ -48,6 +50,9 @@ export function GardenLayout() {
   }
 
   const gardenStats = stats.data?.find((s) => s.garden_id === gardenId) ?? null
+  // perdeu uma árvore hoje aqui: chove na ilha até virar o dia (no fuso da pessoa)
+  const timezone = profile.data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const raining = isRaining(gardenStats?.last_failed_at ?? null, timezone, now)
   const context: GardenOutletContext = {
     garden: garden.data,
     plants: plants.data ?? [],
@@ -62,7 +67,14 @@ export function GardenLayout() {
       <figure className={styles.plate} aria-label={`Jardim ${garden.data.name}`}>
         <Blob className={styles.blob} still={immersive} />
         <div className={styles.frame}>
-          <GardenStage garden={garden.data} plants={context.plants} neglected={context.neglected} seal={context.seal} flowers={flowers.data} />
+          <GardenStage
+            garden={garden.data}
+            plants={context.plants}
+            neglected={context.neglected}
+            raining={raining}
+            seal={context.seal}
+            flowers={flowers.data}
+          />
         </div>
       </figure>
       <section className={styles.sheet}>

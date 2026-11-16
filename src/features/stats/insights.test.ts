@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, distractionInsight, formatMinutes, honestySeal, isNeglected, lastDays, todayIn } from './insights'
+import { addDays, distractionInsight, formatMinutes, honestySeal, isNeglected, isRaining, lastDays, todayIn } from './insights'
 
 const HOUR = 60 * 60 * 1000
 const NOW = Date.parse('2026-10-22T15:00:00Z')
@@ -69,5 +69,29 @@ describe('frase das distrações', () => {
   it('sem horário dominante, fala só do motivo', () => {
     const text = distractionInsight([row('barulho', 2, 1), row('barulho', 9, 1), row('barulho', 14, 1), row('barulho', 20, 1)])
     expect(text).toBe('O barulho é o que mais te atrapalha.')
+  })
+})
+
+describe('chuva no dia da perda', () => {
+  const TZ = 'America/Sao_Paulo'
+  // 2026-10-22, 15:00 UTC = 12:00 em São Paulo
+  it('chove se a planta morreu hoje, no fuso da pessoa', () => {
+    expect(isRaining('2026-10-22T11:00:00Z', TZ, NOW)).toBe(true)
+    expect(isRaining('2026-10-22T03:30:00Z', TZ, NOW)).toBe(true) // 00:30 daqui, ainda é hoje
+  })
+
+  it('não chove se a perda foi ontem', () => {
+    expect(isRaining('2026-10-21T20:00:00Z', TZ, NOW)).toBe(false)
+  })
+
+  it('o que conta é o dia no fuso, não em UTC', () => {
+    // 2026-10-22T02:00Z ainda é dia 21 em São Paulo (UTC-3)
+    expect(isRaining('2026-10-22T02:00:00Z', TZ, NOW)).toBe(false)
+    expect(isRaining('2026-10-22T02:00:00Z', 'UTC', NOW)).toBe(true)
+  })
+
+  it('jardim sem nenhuma perda, ou data estragada, não chove', () => {
+    expect(isRaining(null, TZ, NOW)).toBe(false)
+    expect(isRaining('qualquer coisa', TZ, NOW)).toBe(false)
   })
 })

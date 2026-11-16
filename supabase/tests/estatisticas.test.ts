@@ -49,6 +49,23 @@ describe('estatísticas', () => {
     expect(stats).toMatchObject({ completed: 2, failed: 1, invalid: 0, minutes: 50, honest_nos: 1 })
   })
 
+  it('o resumo diz quando foi a última perda (pra chuva do dia)', async () => {
+    const user = await createUser(db)
+    const garden = await createGarden(db, user)
+    const read = async () =>
+      as(db, user, async (tx) => (await tx.query('select * from garden_stats where garden_id = $1', [garden.id])).rows[0] as Record<string, unknown>)
+
+    await honestSession(user, garden.id, 'sim')
+    expect((await read()).last_failed_at).toBeNull()
+
+    const failed = await rpc<{ id: string }>(db, user, 'start_session', { p_garden_id: garden.id })
+    await rpc(db, user, 'fail_session', { p_session_id: failed.id, p_reason: 'gave_up' })
+    const after = await read()
+    expect(after.last_failed_at).not.toBeNull()
+    // é a data do fim da sessão perdida, não a da concluída
+    expect(Date.parse(String(after.last_failed_at))).toBeGreaterThanOrEqual(Date.parse(String(after.last_completed_at)))
+  })
+
   it('sequência atual e melhor sequência de dias', async () => {
     const user = await createUser(db)
     const garden = await createGarden(db, user)

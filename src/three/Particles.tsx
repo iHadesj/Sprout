@@ -17,6 +17,7 @@ import {
   Matrix4,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  PlaneGeometry,
   Quaternion,
   Vector3,
   type BufferGeometry,
@@ -65,9 +66,11 @@ interface Leaf {
   grow: number
 }
 
-/** Folhas caindo das copas. `colors`: tons de folha (mais um da cor do jardim, de vez em quando). */
-export function FallingLeaves({ radius, heightAt, colors }: { radius: number; heightAt: IslandShape['heightAt']; colors: string[] }) {
-  const count = 8
+/**
+ * Folhas caindo das copas. `colors`: os tons da estação, mais um da cor do jardim de vez em
+ * quando. `count`: quantas ficam no ar — no outono caem muitas, no inverno quase nenhuma.
+ */
+export function FallingLeaves({ radius, heightAt, colors, count = 8 }: { radius: number; heightAt: IslandShape['heightAt']; colors: string[]; count?: number }) {
   const geometry = useMemo(() => leafGeometry(), [])
   const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, flatShading: true, side: DoubleSide, roughness: 0.8 }), [])
   useEffect(() => () => material.dispose(), [material])
@@ -80,7 +83,7 @@ export function FallingLeaves({ radius, heightAt, colors }: { radius: number; he
       leaf.p.y = 0.4 + random() * 1.6 // começam espalhadas na altura, não todas lá em cima
       return leaf
     })
-  }, [random, radius])
+  }, [random, radius, count])
 
   const ref = useRef<InstancedMesh>(null)
   const m = useMemo(() => ({ matrix: new Matrix4(), q: new Quaternion(), e: new Euler(0, 0, 0, 'YXZ'), at: new Vector3(), s: new Vector3() }), [])
@@ -92,7 +95,7 @@ export function FallingLeaves({ radius, heightAt, colors }: { radius: number; he
     const palette = colors.map((c) => new Color(c))
     for (let i = 0; i < count; i++) mesh.setColorAt(i, palette[i % palette.length])
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [colors])
+  }, [colors, count])
 
   useFrame(({ clock }, rawDelta) => {
     const mesh = ref.current
@@ -275,4 +278,122 @@ export function PetalBurst({ burst, onDone }: { burst: Burst; onDone: (id: strin
   })
 
   return <instancedMesh ref={ref} args={[geometry, material, count]} frustumCulled={false} castShadow name="petal-burst" />
+}
+
+/**
+ * Vaga-lumes: só aparecem de noite (`night` vai de 0 a 1 conforme a hora, em `daylight.ts`).
+ * Cada um vagueia devagar em volta de um ponto e pisca por conta própria. O piscar é feito
+ * pela escala (zero = sumiu): assim continua tudo num instancedMesh só, sem transparência
+ * por instância. Sem sombreado (MeshBasic): o bicho é a própria luz.
+ */
+export function Fireflies({ radius, heightAt, night }: { radius: number; heightAt: IslandShape['heightAt']; night: number }) {
+  const count = 16
+  const geometry = useMemo(() => new IcosahedronGeometry(0.034, 0), [])
+  const material = useMemo(() => new MeshBasicMaterial({ color: '#fff0ad' }), [])
+  useEffect(() => () => material.dispose(), [material])
+  useEffect(() => () => geometry.dispose(), [geometry])
+
+  const random = useMemo(() => rng(41), [])
+  const bugs = useMemo(
+    () =>
+      Array.from({ length: count }, () => {
+        const a = random() * TAU
+        const r = radius * Math.sqrt(random()) * 0.85
+        return {
+          x: Math.cos(a) * r,
+          z: Math.sin(a) * r,
+          /** altura acima do chão: a maioria voa baixo, perto do capim */
+          height: 0.15 + random() * random() * 1.1,
+          wander: 0.25 + random() * 0.5,
+          phase: random() * TAU,
+          freq: 0.25 + random() * 0.35,
+          blinkPhase: random() * TAU,
+          blinkFreq: 0.7 + random() * 1.1,
+          size: 0.7 + random() * 0.7,
+        }
+      }),
+    [random, radius],
+  )
+
+  const ref = useRef<InstancedMesh>(null)
+  const m = useMemo(() => ({ matrix: new Matrix4(), q: new Quaternion(), p: new Vector3(), s: new Vector3() }), [])
+  useLayoutEffect(() => {
+    ref.current?.instanceMatrix.setUsage(DynamicDrawUsage)
+  }, [])
+
+  useFrame(({ clock }) => {
+    const mesh = ref.current
+    if (!mesh) return
+    const t = clock.elapsedTime
+    bugs.forEach((bug, i) => {
+      const x = bug.x + Math.sin(t * bug.freq + bug.phase) * bug.wander
+      const z = bug.z + Math.cos(t * bug.freq * 0.8 + bug.phase) * bug.wander
+      const ground = Math.hypot(x, z) < radius * 0.97 ? heightAt(x, z) : 0
+      m.p.set(x, ground + bug.height + Math.sin(t * 1.3 + bug.phase) * 0.08, z)
+      // piscada curta: o seno elevado fica muito tempo perto de zero e acende rápido
+      const pulse = Math.max(0, Math.sin(t * bug.blinkFreq + bug.blinkPhase))
+      m.s.setScalar(bug.size * pulse * pulse * pulse * night)
+      mesh.setMatrixAt(i, m.matrix.compose(m.p, m.q, m.s))
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  })
+
+  return <instancedMesh ref={ref} args={[geometry, material, count]} frustumCulled={false} name="fireflies" />
+}
+
+/**
+ * Chuva: fios d'água caindo depressa e um pouco tortos (o mesmo vento das folhas).
+ * Cada fio é um retângulo fino e comprido; quando passa do chão, volta lá pra cima.
+ * Sem sombreado e meio transparente (MeshBasic): água não tem lado escuro.
+ */
+export function Rainfall({ radius, heightAt }: { radius: number; heightAt: IslandShape['heightAt'] }) {
+  const count = 120
+  const geometry = useMemo(() => new PlaneGeometry(0.008, 0.22), [])
+  const material = useMemo(
+    () => new MeshBasicMaterial({ color: '#b9c8da', transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide }),
+    [],
+  )
+  useEffect(() => () => material.dispose(), [material])
+  useEffect(() => () => geometry.dispose(), [geometry])
+
+  const random = useMemo(() => rng(23), [])
+  const drops = useMemo(
+    () =>
+      Array.from({ length: count }, () => ({
+        ...flakeSpot(random, radius * 1.05, -0.5 + random() * 4),
+        fall: 4.5 + random() * 2.5,
+        size: 0.7 + random() * 0.9,
+      })),
+    [random, radius],
+  )
+
+  const ref = useRef<InstancedMesh>(null)
+  // o fio se inclina na direção do vento: mesma conta que empurra as folhas
+  const tilt = useMemo(() => new Euler(0, 0, Math.atan2(WIND.x, 1) * 2.2), [])
+  const m = useMemo(() => ({ matrix: new Matrix4(), q: new Quaternion(), p: new Vector3(), s: new Vector3() }), [])
+  useLayoutEffect(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    mesh.instanceMatrix.setUsage(DynamicDrawUsage)
+  }, [])
+
+  useFrame((_, rawDelta) => {
+    const mesh = ref.current
+    if (!mesh) return
+    const delta = Math.min(rawDelta, 0.05)
+    drops.forEach((drop, i) => {
+      drop.y -= drop.fall * delta
+      drop.x += WIND.x * 3 * delta
+      drop.z += WIND.z * 3 * delta
+      const onIsland = Math.hypot(drop.x, drop.z) < radius * 0.97
+      const ground = onIsland ? heightAt(drop.x, drop.z) : -2.2
+      if (drop.y <= ground) Object.assign(drop, { ...flakeSpot(random, radius * 1.05, 3.2 + random() * 1.2), fall: drop.fall, size: drop.size })
+      m.p.set(drop.x, drop.y, drop.z)
+      m.s.set(1, drop.size, 1)
+      mesh.setMatrixAt(i, m.matrix.compose(m.p, m.q.setFromEuler(tilt), m.s))
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  })
+
+  return <instancedMesh ref={ref} args={[geometry, material, count]} frustumCulled={false} name="rainfall" />
 }

@@ -18,6 +18,10 @@ export interface FacetUniforms {
   uDry: { value: number }
   /** folhas amarelando (jardim sem sessão há 3 dias) */
   uYellow: { value: number }
+  /** cor da estação: multiplica a cor das partes com folha (outono puxa pro vermelho) */
+  uSeason: { value: Color }
+  /** quanto da cor da estação entra (0 = copa na cor da espécie) */
+  uSeasonMix: { value: number }
   /** brilho extra (troca de estágio) */
   uGlow: { value: number }
   /** relógio do vento, em segundos (parado se "reduzir movimento") */
@@ -38,7 +42,13 @@ export interface FacetUniforms {
 /** Cor do papel da prancha (--paper-card), já no espaço de cor da tela. */
 const PAPER = new Vector3(0xf8, 0xf4, 0xea).divideScalar(255)
 
-export type FacetMaterial = MeshStandardMaterial & { userData: { uniforms: FacetUniforms } }
+export type FacetMaterial = MeshStandardMaterial & {
+  userData: {
+    uniforms: FacetUniforms
+    /** força do brilho de contorno, guardada pra poder trocar só a cor dele depois */
+    rimStrength: number
+  }
+}
 
 interface FacetOptions {
   side?: Side
@@ -50,13 +60,25 @@ interface FacetOptions {
   rim?: number
 }
 
-const RIM = new Color('#fff0cc')
+/** Cor do brilho de contorno de dia: luz quente batendo de raspão na borda das folhas. */
+export const RIM_DAY = '#fff0cc'
+/** À noite o mesmo contorno vira luar: com o quente, a cena noturna parecia só escura. */
+export const RIM_NIGHT = '#cfdcff'
+
+const RIM = new Color(RIM_DAY)
+
+/** Troca a cor do brilho de contorno mantendo a força com que o material foi criado. */
+export function setRimTint(material: FacetMaterial, color: string) {
+  material.userData.uniforms.uRim.value.set(color).multiplyScalar(material.userData.rimStrength)
+}
 
 export function createFacetMaterial(options: FacetOptions = {}): FacetMaterial {
   const uniforms: FacetUniforms = {
     uSaturation: { value: options.saturation ?? 1 },
     uDry: { value: options.dry ?? 0 },
     uYellow: { value: 0 },
+    uSeason: { value: new Color(1, 1, 1) },
+    uSeasonMix: { value: 0 },
     uGlow: { value: 0 },
     uTime: { value: 0 },
     uWind: { value: options.wind ?? 0 },
@@ -75,6 +97,7 @@ export function createFacetMaterial(options: FacetOptions = {}): FacetMaterial {
     side: options.side ?? FrontSide,
   }) as FacetMaterial
   material.userData.uniforms = uniforms
+  material.userData.rimStrength = options.rim ?? 0.2
 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms)
@@ -122,6 +145,8 @@ varying vec3 vBary;
 uniform float uSaturation;
 uniform float uDry;
 uniform float uYellow;
+uniform vec3 uSeason;
+uniform float uSeasonMix;
 uniform float uGlow;
 uniform float uEdge;
 uniform vec3 uRim;
@@ -134,6 +159,11 @@ varying float vFacetY;`,
         '#include <color_fragment>',
         `#include <color_fragment>
 vec3 facetColor = diffuseColor.rgb;
+// estação do ano: só as partes com folha mudam de cor (o tronco fica igual). A folha é
+// repintada pelo brilho dela vezes a cor da estação: o claro-escuro de cada folha continua,
+// mas a cor vira mesmo a da estação (só multiplicar não tirava o verde do verde).
+float facetLeafLuma = dot(facetColor, vec3(0.3, 0.6, 0.1));
+facetColor = mix(facetColor, clamp(facetLeafLuma * uSeason, 0.0, 1.0), uSeasonMix * vLeafy);
 // folhas amarelam quando o jardim fica esquecido
 vec3 facetYellow = vec3(dot(facetColor, vec3(0.75, 0.55, 0.0)), dot(facetColor, vec3(0.55, 0.55, 0.0)), facetColor.b * 0.4);
 facetColor = mix(facetColor, facetYellow, uYellow * vLeafy);

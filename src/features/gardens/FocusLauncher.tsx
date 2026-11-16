@@ -24,6 +24,8 @@ interface FocusLauncherProps {
   garden: Garden
   plants: Plant[]
   neglected: boolean
+  /** uma árvore morreu hoje neste jardim: chove na ilha */
+  raining: boolean
   seal: HonestySeal | null
   onSelect: (id: string) => void
   /** presentes de amigos tocando na ilha */
@@ -34,7 +36,7 @@ interface FocusLauncherProps {
   streak: ReactNode
 }
 
-export function FocusLauncher({ gardens, garden, plants, neglected, seal, onSelect, gifts = null, flowers, today, streak }: FocusLauncherProps) {
+export function FocusLauncher({ gardens, garden, plants, neglected, raining, seal, onSelect, gifts = null, flowers, today, streak }: FocusLauncherProps) {
   const startFocus = useStartFocus()
   const { growing } = summarizePlants(plants)
   const start = () => startFocus(garden.id)
@@ -64,7 +66,7 @@ export function FocusLauncher({ gardens, garden, plants, neglected, seal, onSele
           animate={{ opacity: 1, scale: 1 }}
           transition={{ ...spring.soft, opacity: { duration: 0.3 } }}
         >
-          <GardenStage garden={garden} plants={plants} neglected={neglected} seal={seal} gifts={gifts} flowers={flowers} compact />
+          <GardenStage garden={garden} plants={plants} neglected={neglected} raining={raining} seal={seal} gifts={gifts} flowers={flowers} compact />
         </motion.div>
         <div className={styles.today}>{today}</div>
         <div className={styles.streak}>{streak}</div>

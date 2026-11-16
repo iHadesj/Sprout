@@ -11,6 +11,18 @@ export function isNeglected(lastCompletedAt: string | null, createdAt: string, n
   return now - last > NEGLECT_MS
 }
 
+/**
+ * Choveu hoje neste jardim? Uma planta que morreu hoje (desistiu ou a sessão foi abandonada)
+ * deixa o dia chuvoso na ilha, até virar a data no fuso da pessoa. É só aparência: o jardim
+ * mostra a história real, inclusive os dias ruins.
+ */
+export function isRaining(lastFailedAt: string | null, timeZone: string, now = Date.now()): boolean {
+  if (!lastFailedAt) return false
+  const failed = Date.parse(lastFailedAt)
+  if (Number.isNaN(failed)) return false
+  return todayIn(timeZone, failed) === todayIn(timeZone, now)
+}
+
 export interface HonestySeal {
   level: 1 | 2 | 3
   label: string

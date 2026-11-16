@@ -18,7 +18,8 @@ import {
   type ReportedFailReason,
 } from '../../lib/api'
 import { setBackgroundInterval } from '../../lib/backgroundClock'
-import { playChime, primeChime } from '../../lib/chime'
+import { primeAudio } from '../../lib/audio'
+import { playChime } from '../../lib/chime'
 import { formatClock } from '../../lib/format'
 import { askNotifyPermission, notify } from '../../lib/notify'
 import { useWakeLock } from '../../lib/useWakeLock'
@@ -79,7 +80,7 @@ export function useFocusSession(garden: Garden) {
 
   const start = useCallback(async () => {
     if (!canStart(useFocusStore.getState().timer, performance.now())) return
-    primeChime() // o clique libera o áudio pro sininho do fim
+    primeAudio() // o clique libera o áudio pro sininho e pro som ambiente
     askNotifyPermission()
     setBusy(true)
     setError(null)
@@ -136,7 +137,7 @@ export function useFocusSession(garden: Garden) {
   const resume = useCallback(
     async (row: FocusSession) => {
       if (useFocusStore.getState().timer.phase !== 'idle') return
-      primeChime()
+      primeAudio()
       // confere no servidor: a sessão guardada pode já ter acabado
       setBusy(true)
       const fresh = await getActiveSession().catch(() => null)

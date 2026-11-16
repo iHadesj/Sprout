@@ -127,7 +127,7 @@ export default function LoginScene({ stage, onReady, fallback }: LoginSceneProps
 
 function SceneContents({ stage, motion }: { stage: SproutStage; motion: boolean }) {
   const depth = islandDepth(RADIUS)
-  const materials = useSceneMaterials(0, motion, depth)
+  const materials = useSceneMaterials({ yellow: 0, motion, depth })
   useEffect(() => {
     // a terra embaixo some no papel bem antes do card (atrás dele, viraria uma mancha borrada)
     const u = materials.island.userData.uniforms

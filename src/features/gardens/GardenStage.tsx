@@ -19,6 +19,8 @@ interface GardenStageProps {
   garden: Garden
   plants: Plant[]
   neglected: boolean
+  /** uma planta morreu hoje aqui: chove na ilha */
+  raining?: boolean
   seal: HonestySeal | null
   /** no índice: cena menor, sem zoom pela roda do mouse */
   compact?: boolean
@@ -31,7 +33,7 @@ interface GardenStageProps {
   liveHearts?: number
 }
 
-export function GardenStage({ garden, plants, neglected, seal, compact = false, gifts = null, flowers, liveHearts }: GardenStageProps) {
+export function GardenStage({ garden, plants, neglected, raining = false, seal, compact = false, gifts = null, flowers, liveHearts }: GardenStageProps) {
   // a árvore velha da surpresa: só nos jardins das duas contas (pelo id do dono do jardim)
   const oldTree = isOurs(garden.user_id)
   const focusMode = useFocusStore((s) => s.timer.phase === 'focus' || s.timer.phase === 'review')
@@ -51,6 +53,7 @@ export function GardenStage({ garden, plants, neglected, seal, compact = false, 
             plants={plants}
             focusMode={focusMode}
             neglected={neglected}
+            raining={raining}
             sealLevel={seal?.level ?? 0}
             fallback={placeholder}
             compact={compact}
@@ -64,6 +67,7 @@ export function GardenStage({ garden, plants, neglected, seal, compact = false, 
       <p className="visually-hidden" data-testid="garden-summary">
         {growing ? `Crescendo: ${describeGrowing(growing, garden.biome)}` : 'Nenhuma planta crescendo'}. {grown} adultas, {dead} secas.
         {neglected && ' Folhas amareladas: faz mais de 3 dias sem foco aqui.'}
+        {raining && ' Está chovendo: uma árvore morreu hoje aqui.'}
         {seal && ` ${seal.label}.`}
       </p>
     </div>

@@ -20,8 +20,9 @@ import { useGardenFlowers } from '../friends/queries'
 import { Mural } from '../friends/Mural'
 import { GiftNote } from '../friends/ReceivedGifts'
 import { useReceivedGifts } from '../friends/useReceivedGifts'
-import { honestySeal, isNeglected } from '../stats/insights'
+import { honestySeal, isNeglected, isRaining } from '../stats/insights'
 import { useGardenStats } from '../stats/queries'
+import { useProfile } from '../account/queries'
 import { FocusLauncher } from './FocusLauncher'
 import { GardenForm } from './GardenForm'
 import { GardenList, StreakPebble, TodayPebble } from './HomeBlocks'
@@ -34,6 +35,7 @@ export function GardensScreen() {
   const gardens = useGardens()
   const plants = usePlants()
   const stats = useGardenStats()
+  const profile = useProfile()
   const now = useNow(60_000, true, Date.now)
   const create = useCreateGarden()
   const navigate = useNavigate()
@@ -49,6 +51,9 @@ export function GardensScreen() {
 
   const statsOf = (id: string) => stats.data?.find((s) => s.garden_id === id) ?? null
   const neglectedOf = (garden: Garden) => stats.isSuccess && isNeglected(statsOf(garden.id)?.last_completed_at ?? null, garden.created_at, now)
+  // perdeu uma árvore hoje: chove naquela ilha até virar o dia (no fuso da pessoa)
+  const timezone = profile.data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const rainingOf = (garden: Garden) => isRaining(statsOf(garden.id)?.last_failed_at ?? null, timezone, now)
 
   // jardim do bloco grande: o escolhido agora, senão o último aberto, senão o da sessão mais recente
   const selected = useMemo(() => {
@@ -101,6 +106,7 @@ export function GardensScreen() {
             garden={selected}
             plants={plantsByGarden.get(selected.id) ?? []}
             neglected={neglectedOf(selected)}
+            raining={rainingOf(selected)}
             seal={honestySeal(statsOf(selected.id)?.honest_nos ?? 0)}
             onSelect={select}
             gifts={received.show}

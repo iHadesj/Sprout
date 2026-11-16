@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router'
 import { ArrowLeftIcon } from '../../components/icons/arrow-left'
+import { Ambience } from './Ambience'
 import { ArrowRightIcon } from '../../components/icons/arrow-right'
 import { PlayIcon } from '../../components/icons/play'
 import { Button, ButtonLink } from '../../components/Button'
@@ -140,6 +141,7 @@ export function FocusScreen() {
             <p className={styles.labelGarden}>{garden.name}</p>
             <TimerLabel tone="focus" progress={remainingMs(timer) / timer.focusMs} label={formatClock(remainingMs(timer))} caption={`de ${garden.focus_minutes} min`} />
             <p className={styles.note}>Pode usar outros apps. Só não feche esta aba.</p>
+            <Ambience />
             <GiveUpButton onConfirm={focus.giveUp} />
           </motion.div>
         )}

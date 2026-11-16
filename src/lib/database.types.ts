@@ -196,6 +196,7 @@ export type Database = {
           honest_nos: number | null
           invalid: number | null
           last_completed_at: string | null
+          last_failed_at: string | null
           minutes: number | null
           user_id: string | null
         }

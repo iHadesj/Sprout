@@ -556,3 +556,211 @@ O que mudou em relação ao texto acima, e por quê. As migrations em `supabase/
 - Se o iPhone recarregar a aba, a tela de foco retoma sozinha a sessão do servidor (quando o heartbeat dela parou), com o tempo que já passou. Se outra aba ainda está viva, oferece "Continuar aqui".
 - Fechar a aba de propósito continua matando a planta (aviso com keepalive no `pagehide`; ida pro cache de voltar não conta).
 - Notificação no iPhone fica pra depois: o Safari não notifica site comum e a página congelada não dispara aviso na hora; precisaria de push pelo servidor.
+
+## Backlog e progresso
+
+Esta seção é a memória do projeto: o que já foi feito, o que está em andamento e o que falta.
+Quem trabalha aqui atualiza esta lista **a cada etapa concluída**, não no fim da tarefa (regra
+no `CLAUDE.md`). Marcadores: `[ ]` a fazer, `[~]` em andamento, `[x]` feito, com a data.
+
+### Estado geral (2026-11-16)
+
+Fases 1 a 4 do roadmap estão fechadas, e boa parte da v2 foi antecipada: amigos, ranking da
+semana, visita ao jardim, regar, corações, flores plantadas por amigos, aplausos no mural e
+chamar pra focar. Biomas campo, cerrado e neve. Surpresas (árvore velha, cervinho).
+
+### Do plano original, ainda não feito
+
+- [ ] Conquistas: tabelas `achievements` / `user_achievements` e a folha de selos no caderno.
+- [ ] Card pro story: print do canvas 3D (`preserveDrawingBuffer`) numa prancha de papel + `navigator.share`.
+- [ ] Timelapse do jardim (`canvas.captureStream()` + `MediaRecorder`).
+- [ ] Jardim público em `/g/:username`, opt-in.
+- [ ] Salas de estudo juntos (até 5 pessoas numa sessão).
+- [ ] Grupos e ligas semanais (decidido: sem ranking público com desconhecidos).
+- [ ] PWA: manifest, service worker, instalar no celular, notificação por service worker no Android.
+- [ ] Extensão de navegador que bloqueia sites.
+
+### Melhorias propostas em 2026-11-16
+
+Levantamento feito lendo o código inteiro. A numeração é a da conversa que originou a lista.
+
+**Estética**
+
+- [ ] 1. Grão de papel por cima da cena 3D (ruído em `mix-blend-mode: multiply` sobre o `<Canvas>`): hoje a ilha parece colada na folha, não impressa nela.
+- [x] 2. Luz pela hora do dia (2026-11-16). Detalhes abaixo, em "Feito".
+- [x] 3. Chuva no dia da perda (2026-11-16). Detalhes abaixo, em "Feito".
+- [x] 4. Estação do ano (2026-11-16). Detalhes abaixo, em "Feito".
+- [x] 5. Avatar botânico (2026-11-16). Detalhes abaixo, em "Feito".
+- [x] 6. Som ambiente no foco (2026-11-16). Detalhes abaixo, em "Feito".
+
+**Interação e features**
+
+- [ ] 7. Intenção da sessão: "o que você vai fazer?" antes do foco; aparece no diário e na ficha da árvore.
+- [ ] 8. Prancha da árvore adulta (ficha de herbário) e uma página "Herbário" com todas.
+- [ ] 9. Selos / conquistas, apurados por view no banco (nada calculado no front).
+- [ ] 10. "Quem está focando agora": RPC `friends_focusing()`, avatar aceso na home, marca de "focaram juntos". Sem chat e sem pontos.
+- [ ] 11. Carimbos fechados no mural, no lugar de chat livre.
+- [ ] 12. Escolher onde plantar a próxima semente (o servidor valida a posição).
+- [ ] 13. Rebobinar o jardim: ver a ilha em qualquer data passada, reconstruída das sessões.
+- [ ] 14. Timer flutuante com Document Picture-in-Picture.
+- [ ] 15. Guia de respiração na pausa.
+
+**Decidido não fazer**
+
+- Modo escuro: briga com o tema de papel.
+- Qualquer coisa que faça planta crescer sem foco (presente virar árvore, regar a própria ilha).
+- Movimento na tela de foco.
+- Ranking público com desconhecidos.
+
+### Estética 2 a 6: concluída (2026-11-16)
+
+Etapas, na ordem:
+
+1. [x] Luz pela hora do dia (item 2) — 2026-11-16.
+2. [x] Chuva no dia da perda (item 3) — 2026-11-16.
+3. [x] Estação do ano (item 4) — 2026-11-16.
+4. [x] Avatar botânico (item 5) — 2026-11-16.
+5. [x] Som ambiente no foco (item 6) — 2026-11-16.
+
+### Feito
+
+**Luz pela hora do dia (item 2, 2026-11-16)**
+
+- A luz do jardim segue o relógio de quem está olhando: de madrugada é luar azulado, às 5 h a
+  primeira luz rasante e rosada, de manhã sol baixo e quente, ao meio-dia alto e claro (a luz
+  que existia antes), às 18 h dourado com sombra comprida, às 19:30 crepúsculo arroxeado.
+- `src/three/daylight.ts` (novo): função pura `daylightAt(hora, bioma)` com os momentos do dia
+  em `KEYS` e interpolação entre eles. Devolve direção e altura do sol, cores (sol, céu, chão,
+  contraluz), intensidades e `night` (0 de dia, 1 na noite fechada). Também `hourOf(date)`,
+  `shadowReach(elevação, raio)` e `mixHex`. Testes em `daylight.test.ts` (15 casos): o sol nunca
+  vem de dentro da ilha, a volta da meia-noite não pula, hora fora de 0–24 dá a volta, a noite
+  nunca escurece a ponto de sumir com a ilha, a neve é mais fria que o campo.
+- **Não é modo escuro**: o papel continua claro e a luz do céu nunca desce de 0.78, então a ilha
+  continua legível de madrugada. É a cor e a altura do sol que mudam, não o tema.
+- `SceneLights.tsx`: passou a receber `light` (a luz daquela hora). Sem ela, usa meio-dia — por
+  isso o login e o viveiro continuam exatamente como eram. A caixa da sombra cresce quando o sol
+  baixa (`shadowReach`), senão a sombra comprida sairia da caixa e não seria desenhada.
+- `facetMaterial.ts`: o brilho de contorno (fresnel) era sempre quente (`#fff0cc`). Agora guarda
+  a força com que foi criado (`userData.rimStrength`) e `setRimTint` troca só a cor; à noite ele
+  vira luar (`#cfdcff`). Sem isso a cena noturna parecia só "escura", não noturna.
+- `useSceneMaterials(yellow, motion, depth, night)`: ganhou o `night` e retinge os 4 materiais.
+- `Particles.tsx`: `Fireflies`, vaga-lumes que só aparecem de noite. Vagam devagar em volta de um
+  ponto e piscam pela escala (zero = sumiu), pra caber num `instancedMesh` só. Não aparecem no
+  bioma neve nem com "reduzir movimento".
+- `GardenScene.tsx`: lê a hora com `useNow` de 5 em 5 min (a mudança é lenta), calcula a luz e
+  passa pra luz, pros materiais e pros vaga-lumes.
+- Em desenvolvimento, `?hora=20` em qualquer jardim força a hora da luz, pra ver amanhecer, pôr
+  do sol e noite sem esperar o dia passar. Em produção é sempre o relógio de verdade.
+- Durante o trabalho apareceu um `-` solto no fim de
+  `supabase/migrations/20261022120100_seguranca.sql`, que quebrava os 4 testes do banco
+  ("syntax error at or near -"). Removido; `npm test` volta a passar inteiro (164 testes).
+
+**Chuva no dia da perda (item 3, 2026-11-16)**
+
+- No jardim em que uma árvore morreu hoje (desistiu, ou a sessão foi abandonada), chove na ilha
+  até virar o dia no fuso da pessoa. É o mesmo princípio das folhas amarelas: o jardim mostra a
+  história real, inclusive os dias ruins — sem apagar nada e sem castigar.
+- Migration `20261116120000_chuva.sql`: a view `garden_stats` ganhou `last_failed_at`
+  (`max(ended_at) filter (where status in ('failed','abandoned'))`), do mesmo jeito que já tinha
+  `last_completed_at`. `create or replace view` só deixa acrescentar coluna no fim, e foi o que
+  se fez; o `security_invoker = true` continua. Teste novo em `supabase/tests/estatisticas.test.ts`.
+- `src/lib/database.types.ts`: `last_failed_at` no Row de `garden_stats`.
+- `insights.ts`: `isRaining(lastFailedAt, fuso, agora)` — função pura, compara o dia da perda com
+  o dia de hoje **no fuso da pessoa** (meia-noite em São Paulo não é meia-noite em UTC).
+  4 testes novos em `insights.test.ts`.
+- `daylight.ts`: `overcast(light, amount)` fecha o céu — sol cinza e fraco (45%), contraluz
+  menos quente. A luz do céu (`hemisphere`) não muda: chuva não é noite, a ilha continua legível.
+- `Particles.tsx`: `Rainfall`, fios d'água caindo depressa e tortos pro lado do mesmo vento das
+  folhas; quem passa do chão volta lá pra cima. Um `instancedMesh` só, 120 fios.
+- Na chuva, as folhas que caem dão lugar à chuva e os vaga-lumes não aparecem. No bioma neve já
+  está nevando, então lá a perda aparece só no céu fechado.
+- Passa pela cena como `raining`: `GardenLayout` e `GardensScreen` calculam (view + fuso do
+  perfil), `FocusLauncher` e `GardenStage` repassam. O resumo pro leitor de tela também avisa.
+
+**Estação do ano (item 4, 2026-11-16)**
+
+- A cena muda com a estação: primavera com pétalas rosa e verde novo, verão com verde fechado e
+  luz quente, outono com a copa alaranjada e muitas folhas caindo, inverno pálido e azulado com
+  quase nada no ar.
+- Hemisfério **sul** (o app é brasileiro): dezembro é verão, junho é inverno. As datas são as
+  convencionais dos solstícios e equinócios. Quem usar de outro hemisfério vê a estação trocada —
+  se um dia isso importar, o caminho é escolher a estação no jardim (coluna nova em `gardens`).
+- `src/three/season.ts` (novo): `seasonOf(date)` e `seasonLook(season)`, com a cara de cada
+  estação (tingimento da copa e da grama, cores e quantidade das folhas que caem, e o empurrão
+  na luz). Função pura, 8 testes em `season.test.ts`.
+- A copa é tingida **no shader**, não reconstruindo a árvore: `facetMaterial.ts` ganhou
+  `uSeason` (cor) e `uSeasonMix` (quanto entra), aplicados só nas partes com folha (`vLeafy`,
+  o mesmo atributo que o amarelado do jardim esquecido usa). Multiplica a cor em vez de
+  substituir, então o claro-escuro de cada folha continua lá e a copa não vira um borrão.
+  Vale pra todas as espécies de uma vez e não custa geometria nova — a árvore seca fica de fora,
+  ela já saiu do ciclo.
+- `daylight.ts`: `seasonalLight(light, warmth)` dá um empurrão de cor na luz (outono esquenta,
+  inverno esfria), sem mexer na força dela. A ordem é hora → estação → chuva.
+- `Particles.tsx`: `FallingLeaves` agora recebe `count` (outono 16, inverno 4).
+- `useSceneMaterials` passou a receber um objeto (`{ yellow, motion, depth, night, season }`) em
+  vez de 5 argumentos soltos, que já estava ilegível.
+- No bioma neve é sempre inverno: aquela ilha é de neve o ano inteiro.
+- Em desenvolvimento, `?estacao=outono` (primavera, verao, outono, inverno) força a estação.
+  Dá pra juntar com `?hora=`, ex.: `/jardim/<id>?estacao=outono&hora=17`.
+
+**Avatar botânico (item 5, 2026-11-16)**
+
+- No lugar da pedrinha com a inicial, cada amigo vira um raminho desenhado a traço: haste
+  curva, 2 a 5 folhas alternadas e, na ponta, um botão, um fruto ou um cachinho. Sempre o mesmo
+  desenho pra mesma pessoa.
+- A semente é o **id**, não o nome de usuário: o id não muda, o nome pode mudar, e seria estranho
+  o raminho de alguém virar outro porque a pessoa se renomeou. Sem id, cai no nome.
+- `src/features/friends/sprig.ts` (novo): `sprigOf(seed)` devolve os caminhos SVG (haste, folhas,
+  ponta) e as cores. A folha é uma gota feita de duas curvas quadráticas; o ponto e a direção de
+  encaixe saem da curva da haste (ponto e derivada da cúbica). 8 testes em `sprig.test.ts`,
+  inclusive "a mesma pessoa tem sempre o mesmo raminho" e "o desenho cabe na caixa".
+- A pedrinha ficou com um véu da cor da pessoa (`color-mix` com o papel), no lugar da cor cheia:
+  dá pra diferenciar de longe sem brigar com o traço.
+- Atenção de CSS: o preenchimento das folhas e da ponta vai no atributo `fill` de cada caminho
+  (a cor é por pessoa), então o CSS **não** declara `fill` nessas classes — regra de CSS ganha de
+  atributo de apresentação e apagaria a cor.
+- Os três lugares que mostram avatar (`FriendsScreen`) passam `seed={...user_id}`.
+
+**Som ambiente no foco (item 6, 2026-11-16)**
+
+- Na ficha do foco, quatro cápsulas: Silêncio (padrão), Chuva, Vento e Folhas. Tudo gerado no
+  Web Audio, sem arquivo de som: ruído filtrado já soa como chuva, e um filtro que abre e fecha
+  devagar já soa como vento. Zero download e zero licença de áudio.
+- **Desligado por padrão**: ninguém é surpreendido com som. A escolha fica neste navegador
+  (`localStorage`), como o último jardim aberto.
+- `src/lib/audio.ts` (novo): um `AudioContext` só pro app, com `primeAudio()` (roda no clique de
+  "Começar foco", que é o que libera áudio no navegador) e `audio()`. O `chime.ts` passou a usar
+  ele em vez de ter o próprio — eram dois contextos pro mesmo app.
+- `src/lib/ambience.ts` (novo): monta o caminho do som de cada tipo, entra e sai com fade (som
+  que aparece de uma vez assusta), e guarda a preferência. O ruído é um trecho de 3 s em looping
+  com o fim misturado ao começo, senão o emendar daria um clique. 6 testes.
+- `src/features/focus/Ambience.tsx` (novo): as cápsulas. Começa e para junto com a fase de foco
+  (montou, toca; desmontou, para). É um controle parado — não anima sozinho, como o resto da
+  tela de foco.
+- **Não dá pra conferir o som por aqui**: o que foi verificado é que as cápsulas aparecem,
+  marcam, guardam a escolha e que ligar/desligar sem áudio liberado não quebra. Ouvir é com você.
+
+**Ajuste depois de olhar as fotos (2026-11-16)**
+
+Primeira versão de luz e estação ficou fraca demais nas fotos. O que mudou:
+
+- A noite estava clara demais (parecia dia nublado). A luz do céu à noite caiu de 0.78 pra 0.52
+  e o "luar" ficou mais azul. Continua legível no papel — não é modo escuro —, mas agora é noite.
+- O tingimento da estação multiplicava a cor da folha, e multiplicar verde por laranja continua
+  verde. Agora a folha é repintada pelo **brilho** dela vezes a cor da estação: o claro-escuro de
+  cada folha continua, mas a cor troca de verdade. Os números de `tint` são "a cor que uma folha
+  de brilho médio vira", já divididos pelo brilho — por isso passam de 1.
+- Os vaga-lumes cresceram um pouco (0.025 → 0.034) e clarearam: do tamanho antigo não se viam.
+- As folhas do raminho do avatar eram pequenas demais pra um avatar de 42 px.
+- Fica em aberto: o chão da ilha não muda com a estação (só as árvores, o capim e as folhas no
+  ar). No outono o verde do chão contra as copas douradas chama atenção. Mudar isso é mexer no
+  `islandGeometry` (as cores são de vértice, não de material), então ficou pra depois.
+
+**Ferramenta: conferência visual (`e2e/visual.mjs`)**
+
+- `node e2e/visual.mjs` sobe o Supabase local + o app no Chrome, monta um jardim de mentira e
+  fotografa a ilha nas quatro horas do dia, nas quatro estações, nos dois biomas, com e sem
+  chuva, mais a tela de foco e uma folha com vários avatares. As fotos vão pra
+  `e2e/output/visual/`.
+- Não é teste (não passa nem falha): é pra olhar antes de dizer que uma mudança de estética está
+  pronta. Foi assim que os ajustes acima apareceram.
