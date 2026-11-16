@@ -6,7 +6,7 @@
 // da árvore velha. O caminho da fuga é descrito em relação à câmera ("a" = pro lado, "b" = pra
 // perto da câmera, com a árvore na origem): assim ele sempre passa por trás do tronco, de
 // qualquer ângulo.
-import { clamp, lerp, smooth } from './random'
+import { clamp, hashString, lerp, rng, smooth } from './random'
 
 const TAU = Math.PI * 2
 
@@ -26,6 +26,8 @@ export interface FawnPose {
   lift: number
   /** inclinação do corpo no ar: positivo = focinho pra baixo */
   pitch: number
+  /** tombo lateral do corpo: o peso caindo pra um lado no pulo, e a sacudida */
+  roll: number
   /** 1 = patas no chão (a inclinação é calculada pra todas tocarem), 0 = no ar */
   grounded: number
   /** achatar/esticar o corpo (1 = normal) */
@@ -105,6 +107,7 @@ function stand(): FawnPose {
   const h = RIG.hindRest
   return {
     lift: 0,
+    roll: 0,
     pitch: 0,
     grounded: 1,
     squash: 1,
@@ -127,9 +130,10 @@ function mixLeg(a: LegPose, b: LegPose, k: number): LegPose {
 
 /** Mistura de duas poses (0 = a, 1 = b). */
 export function mixPose(a: FawnPose, b: FawnPose, k: number): FawnPose {
-  const n = (key: 'lift' | 'pitch' | 'grounded' | 'squash' | 'neck' | 'headPitch' | 'headRoll' | 'look' | 'tail' | 'tailWag' | 'blink') => lerp(a[key], b[key], k)
+  const n = (key: 'lift' | 'pitch' | 'roll' | 'grounded' | 'squash' | 'neck' | 'headPitch' | 'headRoll' | 'look' | 'tail' | 'tailWag' | 'blink') => lerp(a[key], b[key], k)
   return {
     lift: n('lift'),
+    roll: n('roll'),
     pitch: n('pitch'),
     grounded: n('grounded'),
     squash: n('squash'),
@@ -162,6 +166,17 @@ const bump = (t: number, center: number, width: number) => {
   return x <= 0 ? 0 : x * x * (3 - 2 * x)
 }
 
+/**
+ * O mesmo bump, mas dando a volta no ciclo (u de 0 a 1 é circular). É o que o pouso precisa:
+ * o tranco acontece no fim do pulo e o corpo ainda está voltando no começo do pulo seguinte.
+ * Com o bump normal, o fim de um pulo não batia com o começo do outro e dava um tranco.
+ */
+const cycleBump = (u: number, center: number, width: number) => {
+  const away = Math.abs((((u - center + 1.5) % 1) + 1) % 1 - 0.5)
+  const x = 1 - away / (width / 2)
+  return x <= 0 ? 0 : x * x * (3 - 2 * x)
+}
+
 // colunas: tempo | frente (coxa, canela) | trás (coxa, canela) | inclinação | pescoço | orelhas | rabo | achatar
 const HOP = [
   [0.0, -0.38, 0.85, 0.85, -1.35, 0.0, 0.62, 0.35, 0.15, 0.93], // agachado, pronto pra pular
@@ -174,8 +189,12 @@ const HOP = [
 const AIR_START = 0.12
 const AIR_END = 0.9
 
-/** Um pulo (u de 0 a 1): agacha, sobe encolhendo as pernas, pousa. `height` = altura do pulo. */
-export function hopPose(u: number, height: number): FawnPose {
+/**
+ * Um pulo (u de 0 a 1): agacha, sobe encolhendo as pernas, pousa. `height` = altura do pulo,
+ * `roll` = quanto o corpo tomba pro lado no ar (o peso caindo, que tira o jeito de brinquedo
+ * de corda). O tombo nasce e morre dentro do pulo, então um pulo emenda no outro sem tranco.
+ */
+export function hopPose(u: number, height: number, roll = 0): FawnPose {
   const at = (x: number) => keys(HOP, ((x % 1) + 1) % 1)
   const [fu, fl, hu, hl, pitch, neck, ears, tail, squash] = at(u)
   // o lado direito vai um tiquinho atrasado: as patas não se mexem como um carimbo
@@ -184,14 +203,38 @@ export function hopPose(u: number, height: number): FawnPose {
   const pose = stand()
   pose.lift = height * 4 * v * (1 - v)
   pose.pitch = pitch
+  pose.roll = roll * 4 * v * (1 - v)
   pose.grounded = 1 - smooth(0.06, 0.16, u) + smooth(0.84, 0.95, u)
-  pose.squash = squash
+  // pouso: o corpo afunda um tico e volta, em vez de parar seco no chão
+  pose.squash = squash - 0.055 * cycleBump(u, 0.945, 0.17) * (height > 0 ? 1 : 0)
   pose.front = [leg(fu, fl), leg(rfu, rfl)]
   pose.hind = [leg(hu, hl), leg(rhu, rhl)]
-  pose.neck = neck
-  pose.ears = [ears, ears * 0.8]
+  pose.neck = neck + 0.1 * cycleBump(u, 0.95, 0.2)
+  // as orelhas batem pra baixo no tranco do pouso
+  const flop = 0.55 * cycleBump(u, 0.96, 0.18)
+  pose.ears = [ears - flop, ears * 0.8 - flop * 1.2]
   pose.tail = tail
   return pose
+}
+
+/**
+ * O feitio de cada pulo da entrada: nenhum sai igual ao outro. Varia a duração, a altura e o
+ * lado pra onde o corpo tomba (alternado, como quem troca a perna de apoio). O último é mais
+ * baixo e mais curto: ele está chegando, não arrancando.
+ *
+ * É sorteado com semente, então o mesmo `seed` dá sempre a mesma entrada (dá pra testar).
+ */
+export function hopShapes(hops: number, seed = 0): { seconds: number; height: number; roll: number }[] {
+  const random = rng(hashString(`hop:${seed}:${hops}`))
+  return Array.from({ length: hops }, (_, i) => {
+    const last = i === hops - 1
+    const slow = 0.9 + random() * 0.26
+    return {
+      seconds: HOP_SECONDS * (last ? 1.1 : slow),
+      height: last ? 0.12 + random() * 0.03 : 0.17 + random() * 0.08,
+      roll: (i % 2 === 0 ? 1 : -1) * (0.05 + random() * 0.05),
+    }
+  })
 }
 
 /** Quanto do pulo já andou pra frente (0 a 1): quase tudo acontece no ar. */
@@ -201,9 +244,12 @@ function hopAdvance(u: number): number {
 
 export const LOOK_SECONDS = 2.9
 
-/** Parado, olhando pra ela (t em segundos desde o pouso): orelha mexe, cabeça de lado, pisca, rabinho. */
-export function lookPose(t: number): FawnPose {
-  const pose = mixPose(hopPose(1, 0), stand(), smooth(0, 0.42, t))
+/**
+ * Parado, olhando pra ela (t em segundos desde o pouso): orelha mexe, cabeça de lado, pisca,
+ * rabinho. `from` = a pose em que ele estava (o fim do número que acabou), pra emendar sem pulo.
+ */
+export function lookPose(t: number, from: FawnPose = hopPose(1, 0)): FawnPose {
+  const pose = mixPose(from, stand(), smooth(0, 0.42, t))
   pose.look = smooth(0.2, 0.8, t)
   const alert = smooth(0.25, 0.65, t)
   pose.ears = [lerp(0.3, 1, alert), lerp(0.3, 1, alert) - 1.1 * bump(t, 1.1, 0.26) - 0.6 * bump(t, 1.42, 0.2)]
@@ -217,11 +263,103 @@ export function lookPose(t: number): FawnPose {
   return pose
 }
 
+// ---------- os números ----------
+//
+// Depois de chegar e antes de se assustar, ele faz alguma coisa. São quatro, e o jardim nunca
+// mostra o mesmo duas vezes seguidas: sem isso, quem abre o jardim cinco vezes no dia vê a
+// mesma cena cinco vezes. Todos terminam parado e olhando pra câmera, porque o fim (o susto e
+// a corrida pra trás do tronco) é o mesmo pra todos.
+
+export type FawnAct = 'chegada' | 'pastando' | 'sacudida' | 'pulinho'
+
+export const FAWN_ACTS: FawnAct[] = ['chegada', 'pastando', 'sacudida', 'pulinho']
+
+/** Quanto dura cada número e quanto ele fica olhando depois (quem fez mais, olha menos). */
+const ACTS: Record<FawnAct, { seconds: number; look: number }> = {
+  chegada: { seconds: 0, look: LOOK_SECONDS },
+  pastando: { seconds: 2.7, look: 1.5 },
+  sacudida: { seconds: 1.5, look: 1.8 },
+  pulinho: { seconds: 1.5, look: 1.7 },
+}
+
+export const actSeconds = (act: FawnAct) => ACTS[act].seconds
+export const lookSeconds = (act: FawnAct) => ACTS[act].look
+
+/** O que ele está fazendo no número, `t` segundos depois de parar. */
+export function actPose(act: FawnAct, t: number): FawnPose {
+  const seconds = ACTS[act].seconds
+  if (act === 'pastando') return grazePose(t, seconds)
+  if (act === 'sacudida') return shakePose(t, seconds)
+  if (act === 'pulinho') return pronkPose(t, seconds)
+  return lookPose(0)
+}
+
+/** Entra e sai suave: 0 nas pontas do número, 1 no meio. */
+const settleIn = (t: number, seconds: number) => smooth(0, 0.35, t) * (1 - smooth(seconds - 0.4, seconds, t))
+
+/**
+ * Pastando: dobra as patas da frente e estica o pescoço até a grama (quem inclina o corpo é o
+ * `settle`, que mantém os quatro cascos no chão), belisca duas vezes e levanta a cabeça.
+ */
+export function grazePose(t: number, seconds: number): FawnPose {
+  const down = settleIn(t, seconds)
+  const pose = stand()
+  pose.front = [mixLeg(leg(0, 0), leg(-0.24, 0.62), down), mixLeg(leg(0, 0), leg(-0.2, 0.56), down)]
+  pose.neck = lerp(0.5, 1.46, down)
+  pose.headPitch = lerp(0, 0.5, down) + 0.14 * (bump(t, 1.05, 0.45) + bump(t, 1.85, 0.45))
+  pose.ears = [lerp(0.3, -0.25, down), lerp(0.3, -0.35, down)]
+  pose.tail = 0.12 * bump(t, 1.5, 1.2)
+  pose.tailWag = Math.sin(t * TAU * 2.6) * 0.3 * bump(t, 1.5, 1.4)
+  pose.roll = 0.05 * Math.sin(t * 1.7) * down
+  pose.squash = 1 + 0.01 * Math.sin(t * 4.2)
+  return pose
+}
+
+/** Sacudida: sacode o corpo do pescoço pro rabo, orelhas batendo. Dura pouco, como o bicho. */
+export function shakePose(t: number, seconds: number): FawnPose {
+  const force = settleIn(t, seconds) * (1 - smooth(1.0, 1.35, t))
+  const pose = stand()
+  const wave = (delay: number) => Math.sin((t - delay) * TAU * 7.5)
+  pose.roll = 0.3 * force * wave(0)
+  pose.headRoll = 0.34 * force * wave(0.04)
+  pose.neck = 0.5 + 0.1 * force * wave(0.06)
+  pose.tailWag = 1.1 * force * wave(0.12)
+  pose.tail = 0.35 * force
+  // a orelha é mais leve que o corpo: bate mais e um pouco depois
+  pose.ears = [0.3 - 1.2 * force * Math.abs(wave(0.05)), 0.3 - 1.2 * force * Math.abs(wave(0.09))]
+  pose.squash = 1 - 0.035 * force * Math.abs(wave(0.02))
+  pose.blink = Math.min(1, force * 1.4)
+  return pose
+}
+
+/** Pulinho: dois pulos curtos no lugar, de pernas duras — o "pronk" que filhote faz à toa. */
+export function pronkPose(t: number, seconds: number): FawnPose {
+  const first = bump(t, 0.5, 0.62)
+  const second = bump(t, 1.05, 0.56)
+  const air = Math.max(first, second * 0.86)
+  // no fim ele já está parado: o que sobra de rabo e balanço vai sumindo
+  const calm = 1 - smooth(seconds - 0.35, seconds, t)
+  const pose = stand()
+  pose.lift = 0.16 * air
+  pose.grounded = 1 - smooth(0.12, 0.3, air)
+  // pernas duras, quase retas: é esse esticão que faz o pulinho parecer de filhote
+  const stiff = 0.5 * air
+  pose.front = [leg(-0.1 * air, 0.14 * air), leg(-0.08 * air, 0.12 * air)]
+  pose.hind = [leg(RIG.hindRest.upper * (1 - stiff), RIG.hindRest.lower * (1 - stiff)), leg(RIG.hindRest.upper * (1 - stiff), RIG.hindRest.lower * (1 - stiff))]
+  pose.pitch = -0.1 * air
+  pose.roll = 0.06 * Math.sin(t * 3.1) * Math.max(air, 0.25 * calm)
+  pose.squash = 1 + 0.07 * air - 0.05 * (bump(t, 0.86, 0.16) + bump(t, 1.38, 0.16))
+  pose.neck = 0.5 - 0.12 * air
+  pose.ears = [0.3 + 0.7 * air, 0.3 + 0.6 * air]
+  pose.tail = 0.3 * air
+  pose.tailWag = 0.4 * Math.sin(t * TAU * 3) * calm
+  return pose
+}
+
 export const STARTLE_SECONDS = 0.26
 
 /** O susto (u de 0 a 1): orelhas duras, rabo sobe, agacha pra arrancar. */
-export function startlePose(u: number): FawnPose {
-  const from = lookPose(LOOK_SECONDS)
+export function startlePose(u: number, from: FawnPose = lookPose(LOOK_SECONDS)): FawnPose {
   const crouch = hopPose(0.02, 0)
   const k = smooth(0, 1, u)
   const pose = mixPose(from, crouch, 0.8 * k)
@@ -274,7 +412,29 @@ const STRIDE_SECONDS = 0.3
 const FLEE_SPEED = 2.5
 const FLEE_RAMP = 0.2
 
-export type FawnPhase = 'wait' | 'enter' | 'look' | 'startle' | 'flee'
+export type FawnPhase = 'wait' | 'enter' | 'act' | 'look' | 'startle' | 'flee'
+
+/** O que vai acontecer nesta aparição: qual número e a semente da variação dos pulos. */
+export interface FawnShow {
+  act: FawnAct
+  seed: number
+}
+
+const DEFAULT_SHOW: FawnShow = { act: 'chegada', seed: 0 }
+
+/** O último número mostrado, pra não repetir na vez seguinte. Vive só nesta aba. */
+let lastAct: FawnAct | null = null
+
+/**
+ * Sorteia a aparição da vez, nunca repetindo o número anterior: o jardim abre várias vezes por
+ * dia e a mesma cena duas vezes seguidas entrega o truque.
+ */
+export function nextShow(random: () => number = Math.random): FawnShow {
+  const options = FAWN_ACTS.filter((a) => a !== lastAct)
+  const act = options[Math.min(options.length - 1, Math.floor(random() * options.length))]
+  lastAct = act
+  return { act, seed: Math.floor(random() * 1e9) }
+}
 
 export interface FawnMoment {
   phase: FawnPhase
@@ -291,16 +451,26 @@ export interface FawnMoment {
   fled: number
 }
 
-/** O que o cervinho está fazendo `t` segundos depois de a cena abrir, numa entrada de `hops` pulos. */
-export function fawnMoment(t: number, hops: number): FawnMoment {
+/** Quanto tempo a entrada inteira leva (cada pulo tem a sua duração). */
+export function enterSeconds(hops: number, seed = 0): number {
+  return hopShapes(hops, seed).reduce((sum, hop) => sum + hop.seconds, 0)
+}
+
+/** O que o cervinho está fazendo `t` segundos depois de a cena abrir. */
+export function fawnMoment(t: number, hops: number, show: FawnShow = DEFAULT_SHOW): FawnMoment {
   const base = { travel: 1, turn: 1, scale: 1, startle: 0, fled: 0 }
   let tau = t - WAIT_SECONDS
   if (tau < 0) return { ...base, phase: 'wait', pose: hopPose(0, 0), travel: 0, turn: 0, scale: 0 }
 
-  const enter = hops * HOP_SECONDS
+  const shapes = hopShapes(hops, show.seed)
+  const enter = shapes.reduce((sum, hop) => sum + hop.seconds, 0)
   if (tau < enter) {
-    const i = Math.min(hops - 1, Math.floor(tau / HOP_SECONDS))
-    const u = tau / HOP_SECONDS - i
+    // acha em qual pulo ele está (as durações são diferentes) e quanto já andou dele
+    let i = 0
+    let start = 0
+    while (i < hops - 1 && start + shapes[i].seconds <= tau) start += shapes[i++].seconds
+    const hop = shapes[i]
+    const u = clamp((tau - start) / hop.seconds, 0, 1)
     const last = i === hops - 1
     // aparece passando um pouco do tamanho e volta
     const k = Math.min(1, tau / 0.3)
@@ -308,24 +478,34 @@ export function fawnMoment(t: number, hops: number): FawnMoment {
     return {
       ...base,
       phase: 'enter',
-      pose: hopPose(u, last ? 0.13 : 0.2 + 0.03 * (i % 2)),
+      pose: hopPose(u, hop.height, hop.roll),
       travel: (i + hopAdvance(u)) / hops,
       turn: last ? smooth(0.15, 0.9, u) : 0,
       scale: pop,
     }
   }
   tau -= enter
-  if (tau < LOOK_SECONDS) return { ...base, phase: 'look', pose: lookPose(tau) }
-  tau -= LOOK_SECONDS
+
+  const act = actSeconds(show.act)
+  if (tau < act) return { ...base, phase: 'act', pose: actPose(show.act, tau) }
+  tau -= act
+
+  // o olhar emenda na pose em que o número terminou, pra cabeça não dar um pulo
+  const after = act > 0 ? actPose(show.act, act) : hopPose(1, 0)
+  const look = lookSeconds(show.act)
+  if (tau < look) return { ...base, phase: 'look', pose: lookPose(tau, after) }
+  tau -= look
+
+  const looking = lookPose(look, after)
   if (tau < STARTLE_SECONDS) {
     const u = tau / STARTLE_SECONDS
-    return { ...base, phase: 'startle', pose: startlePose(u), startle: u }
+    return { ...base, phase: 'startle', pose: startlePose(u, looking), startle: u }
   }
   tau -= STARTLE_SECONDS
   // arranca: a velocidade sobe em FLEE_RAMP segundos e depois fica constante
   const fled = tau < FLEE_RAMP ? (FLEE_SPEED * tau * tau) / (2 * FLEE_RAMP) : FLEE_SPEED * (tau - FLEE_RAMP / 2)
   const gallop = gallopPose(0.3 + tau / STRIDE_SECONDS)
-  return { ...base, phase: 'flee', pose: mixPose(startlePose(1), gallop, smooth(0, 0.14, tau)), startle: 1, fled }
+  return { ...base, phase: 'flee', pose: mixPose(startlePose(1, looking), gallop, smooth(0, 0.14, tau)), startle: 1, fled }
 }
 
 // ---------- por onde ele anda ----------
@@ -340,6 +520,8 @@ export interface FawnPlan {
   stopHeading: number
   /** direção (no chão) da árvore pra câmera usada no plano */
   toCamera: Vec2
+  /** o número desta aparição e a semente da variação dos pulos */
+  show: FawnShow
 }
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.z - b.z)
@@ -356,8 +538,9 @@ function segmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
  * Escolhe o palco: ele para ao lado da árvore (do lado com mais espaço, sem nada na frente
  * tapando a visão da câmera) e chega pulando de mais longe, do mesmo lado.
  * `toCamera` = direção unitária, no chão, da árvore pra câmera. `obstacles` = plantas e placa.
+ * `show` = qual número ele vai fazer; sem isso, sorteia um (sem repetir o da vez passada).
  */
-export function planFawn(tree: Vec2, toCamera: Vec2, radius: number, obstacles: Vec2[]): FawnPlan {
+export function planFawn(tree: Vec2, toCamera: Vec2, radius: number, obstacles: Vec2[], show: FawnShow = nextShow()): FawnPlan {
   const right = { x: toCamera.z, z: -toCamera.x }
   const at = (a: number, b: number): Vec2 => ({ x: tree.x + right.x * a + toCamera.x * b, z: tree.z + right.z * a + toCamera.z * b })
 
@@ -402,6 +585,7 @@ export function planFawn(tree: Vec2, toCamera: Vec2, radius: number, obstacles: 
     enterHeading,
     stopHeading,
     toCamera,
+    show,
   }
 }
 

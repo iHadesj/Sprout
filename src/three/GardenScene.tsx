@@ -11,7 +11,7 @@ import type { Garden, GardenFlower, Plant } from '../lib/api'
 import { HeartFountain } from './CheerEffects'
 import { FriendFlowers } from './FriendFlowers'
 import { Fawn } from './Fawn'
-import { planFawn, type FawnPlan } from './fawnMotion'
+import { FAWN_ACTS, planFawn, type FawnAct, type FawnPlan, type FawnShow } from './fawnMotion'
 import { GiftEffects, type GiftShow } from './GiftEffects'
 import { Grass } from './Grass'
 import { HonestySign } from './HonestySign'
@@ -174,7 +174,7 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, raining, 
     const away = Math.hypot(camera.x - treePlace.x, camera.z - treePlace.z)
     const toCamera = { x: (camera.x - treePlace.x) / away, z: (camera.z - treePlace.z) / away }
     const obstacles = [...spots.map((p) => ({ x: p.position_x, z: p.position_z })), { x: 0, z: radius * 0.78 }]
-    return planFawn(treePlace, toCamera, radius, obstacles)
+    return planFawn(treePlace, toCamera, radius, obstacles, forcedShow())
   }, [fawnOn, radius, treePlace, spots])
   const farEnough = useCallback(() => setCloseUp(false), [])
 
@@ -396,4 +396,15 @@ function forcedHour(): number | null {
   if (!import.meta.env.DEV || typeof location === 'undefined') return null
   const value = Number(new URLSearchParams(location.search).get('hora'))
   return Number.isFinite(value) && location.search.includes('hora=') ? value : null
+}
+
+/**
+ * Só em desenvolvimento: `?cervo=pastando` força o número do cervinho (chegada, pastando,
+ * sacudida ou pulinho), pra ver os quatro sem ficar abrindo o jardim até sair o que falta.
+ * Em produção é sempre sorteado, sem repetir o da vez anterior.
+ */
+function forcedShow(): FawnShow | undefined {
+  if (!import.meta.env.DEV || typeof location === 'undefined') return undefined
+  const value = new URLSearchParams(location.search).get('cervo')
+  return FAWN_ACTS.includes(value as FawnAct) ? { act: value as FawnAct, seed: 7 } : undefined
 }

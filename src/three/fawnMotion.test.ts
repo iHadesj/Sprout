@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actPose,
+  actSeconds,
+  enterSeconds,
+  FAWN_ACTS,
   fawnMoment,
   fleePath,
   footY,
+  grazePose,
   HIDDEN_PAST,
-  HOP_SECONDS,
   hopPose,
+  hopShapes,
   lerpAngle,
-  LOOK_SECONDS,
+  lookSeconds,
+  nextShow,
   planFawn,
+  pronkPose,
+  shakePose,
   RIG,
   settle,
   STARTLE_SECONDS,
@@ -57,14 +65,51 @@ describe('pulo', () => {
   })
 })
 
+describe('entrada pulando', () => {
+  it('nenhum pulo sai igual ao outro: duração, altura e tombo mudam', () => {
+    const shapes = hopShapes(4, 7)
+    expect(new Set(shapes.map((h) => h.seconds)).size).toBeGreaterThan(1)
+    expect(new Set(shapes.map((h) => h.height)).size).toBeGreaterThan(1)
+    // o tombo alterna de lado, como quem troca a perna de apoio
+    expect(Math.sign(shapes[0].roll)).toBe(-Math.sign(shapes[1].roll))
+  })
+
+  it('a mesma semente dá sempre a mesma entrada', () => {
+    expect(hopShapes(4, 7)).toEqual(hopShapes(4, 7))
+    expect(hopShapes(4, 7)).not.toEqual(hopShapes(4, 8))
+  })
+
+  it('o último pulo é mais baixo: ele está chegando, não arrancando', () => {
+    for (const seed of [1, 2, 3, 9]) {
+      const shapes = hopShapes(4, seed)
+      expect(shapes[3].height).toBeLessThan(Math.min(...shapes.slice(0, 3).map((h) => h.height)))
+    }
+  })
+
+  it('um pulo emenda no outro sem tranco, inclusive a absorção do pouso', () => {
+    // o pouso afunda o corpo e ele ainda está voltando no começo do pulo seguinte: se essa
+    // sobra não desse a volta no ciclo, a emenda dava um salto visível
+    expect(hopPose(1, 0.2, 0.08)).toEqual(hopPose(0, 0.2, 0.08))
+    expect(hopPose(1, 0.2, 0.08).squash).toBeLessThan(hopPose(0.5, 0.2, 0.08).squash)
+  })
+
+  it('o corpo tomba pro lado no ar e volta ao certo no chão', () => {
+    expect(hopPose(0, 0.2, 0.1).roll).toBeCloseTo(0, 5)
+    expect(hopPose(1, 0.2, 0.1).roll).toBeCloseTo(0, 5)
+    expect(Math.abs(hopPose(0.5, 0.2, 0.1).roll)).toBeGreaterThan(0.05)
+  })
+})
+
 describe('linha do tempo', () => {
   const hops = 4
-  const total = WAIT_SECONDS + hops * HOP_SECONDS + LOOK_SECONDS + STARTLE_SECONDS
+  const show = { act: 'chegada' as const, seed: 7 }
+  const enter = enterSeconds(hops, show.seed)
+  const total = WAIT_SECONDS + enter + actSeconds(show.act) + lookSeconds(show.act) + STARTLE_SECONDS
 
   it('passa pelas fases na ordem: espera, entra, olha, susto, foge', () => {
     const seen: FawnPhase[] = []
     for (const t of steps(0, total + 1, 0.05)) {
-      const { phase } = fawnMoment(t, hops)
+      const { phase } = fawnMoment(t, hops, show)
       if (seen[seen.length - 1] !== phase) seen.push(phase)
     }
     expect(seen).toEqual(['wait', 'enter', 'look', 'startle', 'flee'])
@@ -72,31 +117,115 @@ describe('linha do tempo', () => {
 
   it('na entrada só anda pra frente e chega exatamente onde para', () => {
     let previous = 0
-    for (const t of steps(WAIT_SECONDS, WAIT_SECONDS + hops * HOP_SECONDS - 0.001, 0.01)) {
-      const { travel } = fawnMoment(t, hops)
+    for (const t of steps(WAIT_SECONDS, WAIT_SECONDS + enter - 0.001, 0.01)) {
+      const { travel } = fawnMoment(t, hops, show)
       expect(travel).toBeGreaterThanOrEqual(previous - 1e-9)
       previous = travel
     }
     expect(previous).toBeGreaterThan(0.98)
-    expect(fawnMoment(WAIT_SECONDS + hops * HOP_SECONDS + 0.1, hops).travel).toBe(1)
+    expect(fawnMoment(WAIT_SECONDS + enter + 0.1, hops, show).travel).toBe(1)
   })
 
   it('olha pra câmera enquanto está parado e para de olhar no susto', () => {
-    const looking = fawnMoment(WAIT_SECONDS + hops * HOP_SECONDS + 1.5, hops)
+    const looking = fawnMoment(WAIT_SECONDS + enter + 1.5, hops, show)
     expect(looking.phase).toBe('look')
     expect(looking.pose.look).toBe(1)
-    expect(fawnMoment(total - 0.001, hops).pose.look).toBeLessThan(0.05)
+    expect(fawnMoment(total - 0.001, hops, show).pose.look).toBeLessThan(0.05)
   })
 
   it('na fuga a distância só cresce, com o rabo branco em pé', () => {
     let previous = 0
     for (const t of steps(total, total + 1, 0.02)) {
-      const now = fawnMoment(t, hops)
+      const now = fawnMoment(t, hops, show)
       expect(now.fled).toBeGreaterThanOrEqual(previous)
       previous = now.fled
     }
     expect(previous).toBeGreaterThan(1.8)
-    expect(fawnMoment(total + 0.5, hops).pose.tail).toBe(1)
+    expect(fawnMoment(total + 0.5, hops, show).pose.tail).toBe(1)
+  })
+})
+
+describe('os quatro números', () => {
+  const hops = 3
+
+  it('cada número tem a sua fase e todos terminam olhando pra câmera', () => {
+    for (const act of FAWN_ACTS) {
+      const show = { act, seed: 3 }
+      const enter = enterSeconds(hops, show.seed)
+      const seen: FawnPhase[] = []
+      const total = WAIT_SECONDS + enter + actSeconds(act) + lookSeconds(act)
+      for (const t of steps(0, total - 0.05, 0.05)) {
+        const { phase } = fawnMoment(t, hops, show)
+        if (seen[seen.length - 1] !== phase) seen.push(phase)
+      }
+      // 'chegada' é o número vazio: vai direto do pulo pro olhar
+      expect(seen).toEqual(act === 'chegada' ? ['wait', 'enter', 'look'] : ['wait', 'enter', 'act', 'look'])
+      // no fim do olhar ele está mesmo encarando a câmera
+      expect(fawnMoment(total - 0.05, hops, show).pose.look).toBeGreaterThan(0.9)
+    }
+  })
+
+  it('o número emenda no olhar sem a cabeça dar um pulo', () => {
+    for (const act of FAWN_ACTS) {
+      const show = { act, seed: 3 }
+      const at = WAIT_SECONDS + enterSeconds(hops, show.seed) + actSeconds(act)
+      const before = fawnMoment(at - 0.016, hops, show).pose
+      const after = fawnMoment(at + 0.016, hops, show).pose
+      expect(Math.abs(after.neck - before.neck)).toBeLessThan(0.1)
+      expect(Math.abs(after.roll - before.roll)).toBeLessThan(0.1)
+      expect(Math.abs(after.headPitch - before.headPitch)).toBeLessThan(0.1)
+    }
+  })
+
+  it('nenhum casco afunda no chão em número nenhum', () => {
+    for (const act of FAWN_ACTS) {
+      for (const t of steps(0, actSeconds(act) || 0.1, 0.02)) {
+        const pose = actPose(act, t)
+        const { pitch, y } = settle(pose)
+        const feet = [footY('front', pose.front[0], pitch), footY('front', pose.front[1], pitch), footY('hind', pose.hind[0], pitch), footY('hind', pose.hind[1], pitch)]
+        expect(Math.min(...feet) + y).toBeGreaterThanOrEqual(-1e-6)
+      }
+    }
+  })
+
+  it('pastando abaixa a cabeça e volta a levantar', () => {
+    const meio = grazePose(actSeconds('pastando') / 2, actSeconds('pastando'))
+    expect(meio.neck).toBeGreaterThan(1.2)
+    expect(grazePose(0, actSeconds('pastando')).neck).toBeCloseTo(0.5, 1)
+    expect(grazePose(actSeconds('pastando'), actSeconds('pastando')).neck).toBeCloseTo(0.5, 1)
+  })
+
+  it('a sacudida sacode e para', () => {
+    const rolls = steps(0, 1, 0.01).map((t) => shakePose(t, actSeconds('sacudida')).roll)
+    expect(Math.max(...rolls)).toBeGreaterThan(0.15)
+    expect(Math.min(...rolls)).toBeLessThan(-0.15)
+    expect(shakePose(actSeconds('sacudida'), actSeconds('sacudida')).roll).toBeCloseTo(0, 2)
+  })
+
+  it('o pulinho tira os quatro cascos do chão duas vezes', () => {
+    const lifts = steps(0, actSeconds('pulinho'), 0.01).map((t) => pronkPose(t, actSeconds('pulinho')).lift)
+    const picos = lifts.filter((v, i) => i > 0 && i < lifts.length - 1 && v > lifts[i - 1] && v >= lifts[i + 1] && v > 0.05)
+    expect(picos.length).toBe(2)
+  })
+})
+
+describe('sorteio do número', () => {
+  it('nunca repete o número da vez anterior', () => {
+    let previous: string | null = null
+    let random = 0
+    for (let i = 0; i < 40; i++) {
+      // percorre todos os sorteios possíveis, inclusive as pontas
+      random = (random + 0.37) % 1
+      const show = nextShow(() => random)
+      expect(show.act).not.toBe(previous)
+      expect(FAWN_ACTS).toContain(show.act)
+      previous = show.act
+    }
+  })
+
+  it('o sorteio no limite ainda devolve um número válido', () => {
+    expect(FAWN_ACTS).toContain(nextShow(() => 0.999999).act)
+    expect(FAWN_ACTS).toContain(nextShow(() => 0).act)
   })
 })
 

@@ -68,7 +68,7 @@ export function FawnModel({ ref, material, eyeMaterial }: FawnModelProps) {
       const { pitch, y } = settle(pose)
       if (body.current) {
         body.current.position.y = RIG.pivotY + y
-        body.current.rotation.x = pitch
+        body.current.rotation.set(pitch, 0, pose.roll)
       }
       const legs: LegPose[] = [pose.front[0], pose.front[1], pose.hind[0], pose.hind[1]]
       legs.forEach((leg, i) => {
@@ -164,7 +164,7 @@ export function Fawn({ plan, tree, heightAt, onDone }: FawnProps) {
   const model = useRef<FawnHandle>(null)
   const { plane, coat, eye } = useFawnMaterials()
   const camera = useThree((s) => s.camera)
-  const state = useRef({ t: 0, hold: false, hops: plan.hops, done: false, heading: plan.enterHeading, look: { yaw: 0, pitch: 0 }, flee: null as FleePath | null, x: plan.start.x, z: plan.start.z })
+  const state = useRef({ t: 0, hold: false, hops: plan.hops, act: plan.show.act, done: false, heading: plan.enterHeading, look: { yaw: 0, pitch: 0 }, flee: null as FleePath | null, x: plan.start.x, z: plan.start.z })
   const scratch = useMemo(() => ({ cam: new Vector3(), normal: new Vector3(), point: new Vector3() }), [])
 
   useEffect(() => {
@@ -182,7 +182,7 @@ export function Fawn({ plan, tree, heightAt, onDone }: FawnProps) {
     const root = model.current?.root
     if (!root?.parent || s.done) return
     if (!s.hold) s.t += Math.min(delta, 0.05) // quadro travado (aba voltando) não pula a cena
-    const now = fawnMoment(s.t, plan.hops)
+    const now = fawnMoment(s.t, plan.hops, plan.show)
     if (now.phase === 'wait') return
     root.visible = true
 
@@ -192,7 +192,7 @@ export function Fawn({ plan, tree, heightAt, onDone }: FawnProps) {
     const toCam = away > 1e-3 ? { x: (cam.x - tree.x) / away, z: (cam.z - tree.z) / away } : plan.toCamera
     const right = { x: toCam.z, z: -toCam.x }
 
-    if (now.phase === 'enter' || now.phase === 'look') {
+    if (now.phase !== 'startle' && now.phase !== 'flee') {
       s.x = lerp(plan.start.x, plan.stop.x, now.travel)
       s.z = lerp(plan.start.z, plan.stop.z, now.travel)
       s.heading = lerpAngle(plan.enterHeading, plan.stopHeading, now.turn)

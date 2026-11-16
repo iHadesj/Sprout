@@ -13,6 +13,16 @@ App pomodoro anti-procrastinação com jardins 3D por área da vida (React + Typ
 - Ao **concluir cada etapa**, atualize o `docs/PLANO.md` na mesma resposta: marque a etapa como feita, diga quais arquivos mudaram e o que a decisão resolve. Não deixe para o fim.
 - Marcadores do backlog: `[ ]` a fazer, `[~]` em andamento, `[x]` feito (com a data).
 
+## Ao terminar uma tarefa (obrigatório)
+- Termine sempre com a **mensagem de commit pronta pra colar**, sem eu pedir: uma linha de
+  resumo (`Summary`) e os bullets da descrição (`Description`). Eu commito no GitHub Desktop.
+- Estilo do repositório: `feat:` ou `fix:` + frase em português minúscula; descrição em bullets
+  com `- `, dizendo o que mudou e por quê.
+- **Nunca** ponha linha de co-autor, "Generated with" nem qualquer assinatura de IA no commit.
+- Não rode `git commit` nem `git push`: o commit é meu.
+- Se a tarefa saiu em etapas que valem commits separados, diga isso e dê uma mensagem por
+  commit, com os arquivos de cada um.
+
 ## Como trabalhar comigo
 - Estou aprendendo: explique o que cada arquivo e decisão faz, de forma direta, sem me afogar em texto.
 - Trabalhe em passos pequenos e me mostre o plano antes de mudanças grandes.

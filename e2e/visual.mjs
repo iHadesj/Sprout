@@ -50,6 +50,7 @@ try {
   const page = await browser.newPage()
   await page.setViewport({ width: 1280, height: 860 })
   page.on('pageerror', (e) => console.log('ERRO NA PAGINA:', e.message))
+  page.on('dialog', (d) => d.accept()) // o foco em andamento pergunta antes de sair da aba
 
   await page.goto(`${APP}/criar-conta`, { waitUntil: 'networkidle0' })
   await page.waitForSelector('input[autocomplete=username]')
@@ -136,6 +137,112 @@ try {
     ),
   )
   console.log('  chips de som:', JSON.stringify(chips))
+
+  console.log('\nCervinho (os quatro números)')
+  // a surpresa só aparece nos jardins de duas contas, pelo id. Aqui se cria uma conta com um
+  // desses ids (mesma senha da outra) só pra poder ver o cervinho.
+  await sql(`update sessions set status = 'abandoned', ended_at = now() where status = 'active'`) // sai do foco que ficou aberto
+  const EDU = 'e186f8e3-25da-4ad2-8e63-69cb984807b9'
+  await sql(
+    `insert into auth.users (id, email, encrypted_password, raw_user_meta_data)
+     select $1, 'edu@sprout.test', encrypted_password, '{"username":"eduardo","timezone":"America/Sao_Paulo"}'::jsonb
+       from auth.users where email = 'visual@sprout.test'`,
+    [EDU],
+  )
+  await page.evaluate(() => localStorage.clear())
+  await page.goto(`${APP}/entrar`, { waitUntil: 'networkidle0' })
+  await page.type('input[type=email]', 'edu@sprout.test')
+  await page.type('input[type=password]', 'senha-forte-123')
+  await page.click('form button[type=submit]')
+  await page.waitForFunction(() => !location.pathname.startsWith('/entrar'), { timeout: 20000 })
+
+  const [pasto] = await sql(
+    `insert into gardens (user_id, name, color, biome, focus_minutes, break_minutes)
+     values ($1,'Pasto','#f2c14e','campo',25,5) returning *`,
+    [EDU],
+  )
+  for (const [x, z, species, growth, status] of [
+    [2.6, 1.3, 'macieira', 10, 'grown'],
+    [-2.3, 1.8, 'cerejeira', 10, 'grown'],
+    [0.6, -2.4, 'pinheiro', 10, 'grown'],
+    [-1.2, 0.4, 'macieira', 6, 'growing'],
+  ]) {
+    await sql(`insert into plants (garden_id, user_id, species, growth, status, position_x, position_z) values ($1,$2,$3,$4,$5,$6,$7)`, [
+      pasto.id,
+      EDU,
+      species,
+      growth,
+      status,
+      x,
+      z,
+    ])
+  }
+
+  // o relógio do cervinho é exposto em desenvolvimento: dá pra congelar e escolher o instante
+  const CLIP = { x: 230, y: 170, width: 700, height: 560 }
+  // instantes de cada número (a cena toda dura uns 6 a 8 s, dependendo do número e dos pulos)
+  const MARKS = {
+    chegada: [1.4, 1.8, 2.2, 2.6, 3.6, 5.2, 5.8],
+    pastando: [1.8, 2.5, 3.2, 3.9, 4.8, 6.0, 7.0],
+    sacudida: [1.8, 2.4, 2.8, 3.2, 4.2, 5.6, 6.4],
+    pulinho: [1.8, 2.5, 2.9, 3.3, 4.2, 5.5, 6.3],
+  }
+  // congela o relógio do cervinho no instante em que ele aparece: a cena dura uns 7 s e, do
+  // lado de fora, a página demora o bastante carregando pra ele já ter ido embora
+  await page.evaluateOnNewDocument(() => {
+    let held
+    Object.defineProperty(window, '__sproutFawn', {
+      configurable: true,
+      get: () => held,
+      set: (value) => {
+        held = value
+        if (value) value.hold = true
+      },
+    })
+  })
+  const rows = []
+  for (const act of ['chegada', 'pastando', 'sacudida', 'pulinho']) {
+    await page.goto(`${APP}/jardim/${pasto.id}?cervo=${act}&hora=12`, { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => window.__sproutFawn, { timeout: 25000 })
+    const marks = MARKS[act]
+    const frames = []
+    const shown = []
+    for (const mark of marks) {
+      // quando ele some atrás da árvore o componente sai de cena e o relógio some junto
+      const alive = await page.evaluate((m) => {
+        if (!window.__sproutFawn) return false
+        window.__sproutFawn.t = m
+        return true
+      }, mark)
+      if (!alive) break
+      await sleep(260)
+      frames.push(await page.screenshot({ encoding: 'base64', clip: CLIP }))
+      shown.push(mark)
+    }
+    rows.push({ act, frames, marks: shown })
+    console.log('  número:', act, '→', frames.length, 'quadros')
+  }
+  const strip = rows
+    .map(
+      (r) =>
+        `<div class="strip"><h2>${r.act}</h2><div class="frames">${r.frames
+          .map((f, i) => `<figure><img src="data:image/png;base64,${f}"><figcaption>${r.marks[i].toFixed(1)} s</figcaption></figure>`)
+          .join('')}</div></div>`,
+    )
+    .join('')
+  const stripStyle = [
+    'body{background:#f3eee2;font-family:Georgia,serif;color:#2a2823;margin:0;padding:16px}',
+    'h2{font-size:15px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.08em}',
+    '.frames{display:flex;gap:6px}',
+    'figure{margin:0;flex:1}',
+    'img{width:100%;display:block;border:1px solid #d8cfbb}',
+    'figcaption{font-family:monospace;font-size:10px;color:#6f685b;text-align:center}',
+  ].join('')
+  await page.setViewport({ width: 2600, height: 1800 })
+  await page.setContent(`<!doctype html><meta charset="utf-8"><style>${stripStyle}</style>${strip}`, { waitUntil: 'load' })
+  await sleep(500)
+  await page.screenshot({ path: join(OUT, 'cervinho.png'), fullPage: true })
+  console.log('  foto: cervinho')
 
   console.log('\nAvatares')
   const sprigs = await page.evaluate(async () => {

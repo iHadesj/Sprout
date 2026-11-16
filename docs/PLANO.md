@@ -764,3 +764,46 @@ Primeira versão de luz e estação ficou fraca demais nas fotos. O que mudou:
   `e2e/output/visual/`.
 - Não é teste (não passa nem falha): é pra olhar antes de dizer que uma mudança de estética está
   pronta. Foi assim que os ajustes acima apareceram.
+
+**Cervinho: pulo mais natural e quatro números (2026-11-16)**
+
+O cervinho aparecia toda vez que o jardim abria, sempre com a mesma cena. Duas mudanças:
+
+*Pulo mais natural* (`fawnMotion.ts`)
+
+- Antes todo pulo era igual: mesma duração (0,5 s), mesma tabela de poses, só a altura alternando
+  um tiquinho. `hopShapes(hops, seed)` passou a sortear duração, altura e tombo de cada pulo; o
+  último é mais baixo e mais longo, porque ele está chegando, não arrancando.
+- O corpo agora **tomba pro lado** no ar (`roll` novo na pose, aplicado em `body.rotation.z`),
+  alternando de lado a cada pulo. Sem isso ele pulava como brinquedo de corda.
+- **Absorção no pouso**: o corpo afunda um pouco e volta, o pescoço dá um tranco e as orelhas
+  batem pra baixo. Isso acontece no fim de um pulo e continua no começo do seguinte, então usa
+  um `cycleBump` (bump que dá a volta no ciclo) — com o bump normal a emenda entre dois pulos
+  dava um salto visível, e o teste "os pulos emendam sem tranco" pegou isso.
+- Como as durações agora variam, a entrada inteira dura `enterSeconds(hops, seed)`, não
+  `hops * HOP_SECONDS`.
+
+*Quatro números* (`FawnAct`)
+
+- Entre chegar e se assustar ele faz alguma coisa, e o jardim **nunca mostra o mesmo número
+  duas vezes seguidas** (`nextShow()` guarda o último numa variável do módulo):
+  - `chegada`: o de antes — chega, para e olha (olhar mais longo, 2,9 s);
+  - `pastando`: dobra as patas da frente, abaixa até a grama, belisca duas vezes e levanta;
+  - `sacudida`: sacode o corpo do pescoço ao rabo, orelhas batendo (rápido, como bicho faz);
+  - `pulinho`: dois pulos curtos no lugar, de pernas duras — o "pronk" de filhote.
+- Quem faz mais, olha menos: cada número diz quanto dura e quanto de olhar vem depois, pra cena
+  inteira continuar em 6 a 8 s.
+- O fim é o mesmo pra todos (susto → corre pra trás do tronco e some): é o truque que faz o
+  sumiço funcionar de qualquer ângulo, então não se mexe nele.
+- `lookPose(t, from)` e `startlePose(u, from)` passaram a receber a pose anterior, pra cada
+  número emendar no olhar sem a cabeça dar um pulo (tem teste pra isso).
+- `FawnPlan` ganhou `show` (o número + a semente dos pulos). `planFawn(..., show = nextShow())`.
+- Em desenvolvimento, `?cervo=pastando` (chegada, pastando, sacudida, pulinho) força o número.
+- Testes: 31 em `fawnMotion.test.ts` (eram 18). Os novos cobrem a variação dos pulos, a emenda
+  entre pulos, o tombo no ar, as fases de cada número, a emenda número→olhar, nenhum casco
+  afundando no chão em número nenhum e o sorteio que não repete.
+- `e2e/visual.mjs` ganhou a folha `cervinho.png`: congela o relógio do cervinho (pelo
+  `window.__sproutFawn` de desenvolvimento) e fotografa os quatro números em sete instantes.
+- **O que não dá pra conferir em foto**: se o movimento *flui* bem é coisa de ver rodando. As
+  fotos mostram que as poses estão certas (pastando de cabeça baixa, pulinho no ar, nada
+  atravessando o chão); o resto é olhar com `?cervo=`.
