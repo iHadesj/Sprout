@@ -120,19 +120,32 @@ function torso(): BufferGeometry {
 
 // ---------- pescoço, cabeça, olho, orelha, rabo ----------
 
-function neck(): BufferGeometry {
-  const b = new MeshBuilder(rng(hashString('cervinho:pescoço')), 0.045)
-  // altura (a partir do ombro), meia largura, meia profundidade, deslocamento pra frente
-  const sections = [
-    [-0.04, 0.044, 0.058, -0.016],
-    [0.005, 0.038, 0.048, -0.01],
-    [0.045, 0.031, 0.038, -0.004],
-    [0.08, 0.028, 0.033, 0.0],
-    [RIG.neck.length + 0.008, 0.027, 0.031, 0.003],
-  ]
+/**
+ * Gomo do pescoço: um tubo com meia esfera em cada ponta, cada uma centrada na sua junta. Girar
+ * em volta da junta só gira a esfera em volta do próprio centro, então nunca abre buraco nem
+ * aparece o lado de dentro (era isso que acontecia: o pescoço era um tubo aberto que, dobrado
+ * pra pastar, saía de dentro do tronco com a boca pra cima). A ponta de cima é um tico menor que
+ * a de baixo do gomo seguinte, pra ficar por dentro dela em vez de brigar com ela na mesma
+ * superfície. `r0`/`r1` = [meia largura, meia profundidade] embaixo e em cima.
+ */
+function neckSegment(seed: string, length: number, r0: [number, number], r1: [number, number], throat: Color): BufferGeometry {
+  const b = new MeshBuilder(rng(hashString(seed)), 0.045)
+  const dome0 = (r0[0] + r0[1]) / 2
+  const dome1 = (r1[0] + r1[1]) / 2
+  // [altura, meia largura, meia profundidade]
+  const sections: number[][] = []
+  for (const a of [65, 38, 14]) {
+    const k = (a * Math.PI) / 180
+    sections.push([-dome0 * Math.sin(k), r0[0] * Math.cos(k), r0[1] * Math.cos(k)])
+  }
+  sections.push([length * 0.5, lerp(r0[0], r1[0], 0.55), lerp(r0[1], r1[1], 0.55)])
+  for (const a of [0, 30, 60]) {
+    const k = (a * Math.PI) / 180
+    sections.push([length + dome1 * Math.sin(k), r1[0] * Math.cos(k), r1[1] * Math.cos(k)])
+  }
   // o anel começa na frente (garganta clara) e dá a volta por trás (nuca escura)
-  const rings = sections.map(([y, rx, rz, z]) => ring(new Vector3(0, y, z), X, Z, rx, rz, 10))
-  skin(b, rings, (row, t) => ramp([row >= 2 ? CREAM : TAN, TAN, COAT, COAT, DORSAL], t))
+  const rings = sections.map(([y, rx, rz]) => ring(new Vector3(0, y, 0), X, Z, rx, rz, 10))
+  skin(b, rings, (_, t) => ramp([throat, TAN, COAT, COAT, DORSAL], t), [new Vector3(0, -dome0, 0), new Vector3(0, length + dome1, 0)])
   return b.build()
 }
 
@@ -252,11 +265,15 @@ function tail(): BufferGeometry {
 // ---------- pernas ----------
 
 /** Pedaço de perna descendo a partir da articulação. Seções: [altura, meia largura, meia profundidade]. */
-function limb(seed: string, sections: number[][], colorAt: (row: number) => Color, hoof = false): BufferGeometry {
+function limb(seed: string, sections: number[][], colorAt: (row: number) => Color, hoof = false, joint = 0): BufferGeometry {
   const b = new MeshBuilder(rng(hashString(seed)), 0.045)
-  const rings = sections.map(([y, rx, rz]) => ring(new Vector3(0, y, 0), X, Z, rx, rz, 7))
+  // `joint` = raio da bolinha em cima (centrada na articulação): cobre a ponta da coxa quando o
+  // joelho dobra muito, em vez de abrir uma fresta atrás dele
+  const top = joint > 0 ? [60, 30].map((a) => [joint * Math.sin((a * Math.PI) / 180), sections[0][1] * Math.cos((a * Math.PI) / 180) * 1.07, sections[0][2] * Math.cos((a * Math.PI) / 180) * 1.07]) : []
+  const all = [...top, ...sections]
+  const rings = all.map(([y, rx, rz]) => ring(new Vector3(0, y, 0), X, Z, rx, rz, 7))
   const end = sections[sections.length - 1][0]
-  skin(b, rings, (row) => colorAt(row), [null, hoof ? new Vector3(0, end - 0.001, 0) : null])
+  skin(b, rings, (row) => colorAt(Math.max(0, row - top.length)), [joint > 0 ? new Vector3(0, joint, 0) : null, hoof ? new Vector3(0, end - 0.001, 0) : null])
   return b.build()
 }
 
@@ -272,12 +289,14 @@ function lowerLeg(seed: string, length: number): BufferGeometry {
     ],
     (row) => (row >= 3 ? HOOF.clone() : row === 2 ? TAN.clone().lerp(CREAM, 0.35) : row === 1 ? TAN.clone() : FLANK.clone()),
     true,
+    0.0152,
   )
 }
 
 export interface FawnParts {
   torso: BufferGeometry
-  neck: BufferGeometry
+  neckBase: BufferGeometry
+  neckTop: BufferGeometry
   head: BufferGeometry
   eye: BufferGeometry
   ear: BufferGeometry
@@ -293,10 +312,11 @@ let cache: FawnParts | null = null
 /** As partes do cervinho (feitas uma vez e guardadas: são sempre iguais). */
 export function fawnParts(): FawnParts {
   if (cache) return cache
-  const { front, hind } = RIG
+  const { front, hind, neck } = RIG
   cache = {
     torso: torso(),
-    neck: neck(),
+    neckBase: neckSegment('cervinho:pescoço', neck.base, [0.042, 0.047], [0.03 * 0.93, 0.035 * 0.93], TAN),
+    neckTop: neckSegment('cervinho:pescoço de cima', neck.top, [0.03, 0.035], [0.026, 0.03], CREAM),
     head: head(),
     eye: eye(),
     ear: ear(),

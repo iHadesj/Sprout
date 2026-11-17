@@ -23,9 +23,21 @@ import {
   WAIT_SECONDS,
   wrapAngle,
   type FawnPhase,
+  type FawnPose,
 } from './fawnMotion'
 
 const steps = (from: number, to: number, step: number) => Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => from + i * step)
+
+/** Altura de cada casco acima do chão [frente esq., frente dir., trás esq., trás dir.], com o corpo assentado. */
+function hooves(pose: FawnPose): number[] {
+  const { pitch, y } = settle(pose)
+  return [
+    footY('front', pose.front[0], pitch, pose.roll, 1),
+    footY('front', pose.front[1], pitch, pose.roll, -1),
+    footY('hind', pose.hind[0], pitch, pose.roll, 1),
+    footY('hind', pose.hind[1], pitch, pose.roll, -1),
+  ].map((h) => h + y)
+}
 
 describe('esqueleto', () => {
   it('parado, os quatro cascos tocam o chão', () => {
@@ -46,22 +58,53 @@ describe('esqueleto', () => {
 
 describe('pulo', () => {
   it('nenhum casco afunda no chão em nenhum momento', () => {
-    for (const u of steps(0, 1, 0.02)) {
-      const pose = hopPose(u, 0.2)
-      const { pitch, y } = settle(pose)
-      const feet = [footY('front', pose.front[0], pitch), footY('front', pose.front[1], pitch), footY('hind', pose.hind[0], pitch), footY('hind', pose.hind[1], pitch)]
-      expect(Math.min(...feet) + y).toBeGreaterThanOrEqual(-1e-6)
+    for (const u of steps(0, 1, 0.02)) expect(Math.min(...hooves(hopPose(u, 0.12)))).toBeGreaterThanOrEqual(-1e-6)
+  })
+
+  it('as patas de trás empurram plantadas no chão: o corpo sobe com elas apoiadas', () => {
+    // era o bug: o corpo inteiro levitava junto, como se só dobrasse a perna e subisse
+    let previous = -Infinity
+    for (const u of steps(0.06, 0.13, 0.01)) {
+      const [fl, fr, hl, hr] = hooves(hopPose(u, 0.12))
+      expect(Math.min(hl, hr)).toBeLessThan(0.002)
+      expect(Math.min(fl, fr)).toBeGreaterThan(0.02)
+      const { y } = settle(hopPose(u, 0.12))
+      expect(y).toBeGreaterThan(previous)
+      previous = y
     }
   })
 
-  it('sai do chão, chega na altura pedida e volta', () => {
-    expect(hopPose(0, 0.2).lift).toBe(0)
-    expect(hopPose(1, 0.2).lift).toBe(0)
-    expect(Math.max(...steps(0, 1, 0.01).map((u) => hopPose(u, 0.2).lift))).toBeCloseTo(0.2, 2)
+  it('pousa com as patas da frente primeiro', () => {
+    const [fl, fr, hl, hr] = hooves(hopPose(0.65, 0.12))
+    expect(Math.min(fl, fr)).toBeLessThan(0.002)
+    expect(Math.min(hl, hr)).toBeGreaterThan(0.03)
+  })
+
+  it('o corpo sobe a altura pedida acima da decolagem e do pouso', () => {
+    const body = (u: number) => settle(hopPose(u, 0.12)).y
+    const top = Math.max(...steps(0.2, 0.6, 0.005).map(body))
+    expect(top - Math.max(body(0.2), body(0.6))).toBeGreaterThan(0.08)
+    expect(top - Math.max(body(0.2), body(0.6))).toBeLessThan(0.13)
+    expect(hopPose(0, 0.12).lift).toBe(0)
+    expect(hopPose(1, 0.12).lift).toBe(0)
+  })
+
+  it('a altura do corpo muda sem tranco (nem na decolagem, nem no pouso)', () => {
+    // segunda diferença pequena = a velocidade não muda de uma vez. A parábola de antes
+    // arrancava do nada na decolagem e passava disso.
+    const h = 0.004
+    const body = (u: number) => settle(hopPose(u, 0.12)).y
+    for (const u of steps(h, 1 - h, h)) expect(Math.abs(body(u + h) - 2 * body(u) + body(u - h))).toBeLessThan(0.0045)
+  })
+
+  it('as pernas passam pelos quadros-chave sem frear (curva cúbica, não smoothstep)', () => {
+    // 0.33 é um quadro-chave: com o smoothstep de antes, a perna parava ali
+    const angle = (u: number) => hopPose(u, 0.12).front[0].upper
+    expect(Math.abs(angle(0.335) - angle(0.325))).toBeGreaterThan(0.004)
   })
 
   it('termina na mesma pose em que começa (os pulos emendam sem tranco)', () => {
-    expect(hopPose(1, 0.2)).toEqual(hopPose(0, 0.2))
+    expect(hopPose(1, 0.12)).toEqual(hopPose(0, 0.12))
   })
 })
 
@@ -87,10 +130,8 @@ describe('entrada pulando', () => {
   })
 
   it('um pulo emenda no outro sem tranco, inclusive a absorção do pouso', () => {
-    // o pouso afunda o corpo e ele ainda está voltando no começo do pulo seguinte: se essa
-    // sobra não desse a volta no ciclo, a emenda dava um salto visível
     expect(hopPose(1, 0.2, 0.08)).toEqual(hopPose(0, 0.2, 0.08))
-    expect(hopPose(1, 0.2, 0.08).squash).toBeLessThan(hopPose(0.5, 0.2, 0.08).squash)
+    expect(hopPose(1, 0.2, 0.08).squash).toBeLessThan(hopPose(0.47, 0.2, 0.08).squash)
   })
 
   it('o corpo tomba pro lado no ar e volta ao certo no chão', () => {
@@ -179,31 +220,51 @@ describe('os quatro números', () => {
 
   it('nenhum casco afunda no chão em número nenhum', () => {
     for (const act of FAWN_ACTS) {
-      for (const t of steps(0, actSeconds(act) || 0.1, 0.02)) {
-        const pose = actPose(act, t)
-        const { pitch, y } = settle(pose)
-        const feet = [footY('front', pose.front[0], pitch), footY('front', pose.front[1], pitch), footY('hind', pose.hind[0], pitch), footY('hind', pose.hind[1], pitch)]
-        expect(Math.min(...feet) + y).toBeGreaterThanOrEqual(-1e-6)
-      }
+      for (const t of steps(0, actSeconds(act) || 0.1, 0.02)) expect(Math.min(...hooves(actPose(act, t)))).toBeGreaterThanOrEqual(-1e-6)
+    }
+  })
+
+  it('o último pulo emenda no número sem o corpo dar um salto', () => {
+    for (const act of FAWN_ACTS) {
+      const show = { act, seed: 3 }
+      const at = WAIT_SECONDS + enterSeconds(hops, show.seed)
+      const body = (t: number) => settle(fawnMoment(t, hops, show).pose).y
+      // antes: 3 cm de uma vez (do agachado do pouso direto pra pose do número)
+      for (const t of steps(at - 0.032, at + 0.25, 0.016)) expect(Math.abs(body(t + 0.016) - body(t))).toBeLessThan(0.006)
     }
   })
 
   it('pastando abaixa a cabeça e volta a levantar', () => {
     const meio = grazePose(actSeconds('pastando') / 2, actSeconds('pastando'))
-    expect(meio.neck).toBeGreaterThan(1.2)
+    expect(meio.neck).toBeGreaterThan(2.2)
+    // filhote abre as patas da frente pra alcançar o chão
+    expect(meio.front[0].out).toBeGreaterThan(0.3)
+    expect(meio.front[1].out).toBeLessThan(-0.3)
     expect(grazePose(0, actSeconds('pastando')).neck).toBeCloseTo(0.5, 1)
     expect(grazePose(actSeconds('pastando'), actSeconds('pastando')).neck).toBeCloseTo(0.5, 1)
   })
 
   it('a sacudida sacode e para', () => {
-    const rolls = steps(0, 1, 0.01).map((t) => shakePose(t, actSeconds('sacudida')).roll)
-    expect(Math.max(...rolls)).toBeGreaterThan(0.15)
-    expect(Math.min(...rolls)).toBeLessThan(-0.15)
+    const rolls = steps(0, 1.2, 0.01).map((t) => shakePose(t, actSeconds('sacudida')).roll)
+    expect(Math.max(...rolls)).toBeGreaterThan(0.08)
+    expect(Math.min(...rolls)).toBeLessThan(-0.08)
     expect(shakePose(actSeconds('sacudida'), actSeconds('sacudida')).roll).toBeCloseTo(0, 2)
   })
 
+  it('na sacudida os cascos ficam plantados: o tronco gira, as pernas compensam', () => {
+    // era o bug: o tronco girava com as pernas penduradas e os cascos saíam do chão
+    for (const t of steps(0, actSeconds('sacudida'), 0.01)) expect(Math.max(...hooves(shakePose(t, actSeconds('sacudida'))))).toBeLessThan(0.009)
+  })
+
+  it('a sacudida começa pela cabeça e termina no rabo', () => {
+    const seconds = actSeconds('sacudida')
+    const first = (key: 'headRoll' | 'roll' | 'tailWag') => steps(0, seconds, 0.01).find((t) => Math.abs(shakePose(t, seconds)[key]) > 0.03) ?? Infinity
+    expect(first('headRoll')).toBeLessThan(first('roll'))
+    expect(first('roll')).toBeLessThan(first('tailWag'))
+  })
+
   it('o pulinho tira os quatro cascos do chão duas vezes', () => {
-    const lifts = steps(0, actSeconds('pulinho'), 0.01).map((t) => pronkPose(t, actSeconds('pulinho')).lift)
+    const lifts = steps(0, actSeconds('pulinho'), 0.01).map((t) => Math.min(...hooves(pronkPose(t, actSeconds('pulinho')))))
     const picos = lifts.filter((v, i) => i > 0 && i < lifts.length - 1 && v > lifts[i - 1] && v >= lifts[i + 1] && v > 0.05)
     expect(picos.length).toBe(2)
   })

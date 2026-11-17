@@ -827,3 +827,42 @@ O cervinho aparecia toda vez que o jardim abria, sempre com a mesma cena. Duas m
 - **O que não dá pra conferir em foto**: se o movimento *flui* bem é coisa de ver rodando. As
   fotos mostram que as poses estão certas (pastando de cabeça baixa, pulinho no ar, nada
   atravessando o chão); o resto é olhar com `?cervo=`.
+
+**Cervinho: pulo, pescoço e sacudida de bicho de verdade (2026-11-17)**
+
+Três defeitos que apareciam rodando: o pulo era duro (parecia que ele só dobrava a perna e
+subia), ao abaixar o pescoço a textura bugava e o pescoço se soltava do corpo, e na sacudida o
+cervinho inteiro balançava de um lado pro outro, saindo do chão.
+
+- [x] Pulo (`fawnMotion.ts`) — 2026-11-17.
+  - Causa: `settle` punha o corpo na altura "casco mais baixo + lift", então os quatro cascos
+    saíam do chão juntos e a pata de trás nunca empurrava. E `keys()` usava smoothstep em cada
+    quadro-chave: a velocidade zerava em toda pose (cara de stop-motion).
+  - `FawnPose.grounded` virou `contact: [frente, trás]`. Com um par só apoiado, esse par fica
+    plantado e o corpo gira em volta dele. Agora a pata de trás estica no chão e empurra o corpo,
+    e ele pousa com as da frente primeiro, passando por cima delas (o "bound" de cervo).
+  - `curve()` (Catmull-Rom) no lugar de `keys()`: a curva passa pelos quadros-chave sem frear.
+  - `airborne()`: no voo o corpo segue uma curva que nasce com a velocidade do empurrão e
+    chega no pouso freando. A parábola pura dava um quique na decolagem, porque a perna de trás
+    perde alcance quando gira pra trás.
+  - O número começa do agachado do último pouso (antes pulava 3 cm de uma vez).
+- [x] Pescoço (`fawnGeometry.ts`, `Fawn.tsx`, `RIG.neck`) — 2026-11-17.
+  - Causa: o pescoço era um tubo aberto girando até 1,46 rad em volta de um ponto na beira do
+    peito. A base saía de dentro do tronco com a boca virada pra cima (aparecia o lado de dentro),
+    e a ponta furava a cabeça.
+  - Agora são dois gomos (`neckBase`, `neckTop`), cada um uma cápsula com meia esfera centrada
+    na junta: girar só gira a esfera em volta do próprio centro, então nunca abre buraco. A
+    base dobra 60% (pescoço de bicho dobra mais perto do ombro). A canela ganhou uma bolinha
+    na junta pelo mesmo motivo.
+  - Pastando: abre as patas da frente pros lados (`LegPose.out`, girando no quadril), o corpo
+    desce na frente e o focinho chega na grama. Mastiga mexendo a cabeça (`sway`, novo),
+    uma orelha vira pra trás escutando.
+- [x] Sacudida (`fawnMotion.ts`) — 2026-11-17.
+  - Causa: o `roll` girava o tronco com as pernas penduradas, e o `settle` nem sabia que o
+    roll existia: os cascos varriam o chão pros lados e saíam dele.
+  - `footY` agora faz a conta 3D (roll e abertura da perna). Na sacudida, as pernas giram o
+    contrário do tronco e os cascos ficam plantados. A sacudida nasce na cabeça, passa pro
+    tronco e termina no rabo (6 Hz, como cachorro), com as orelhas chicoteando atrasadas.
+- Testes: 38 em `fawnMotion.test.ts`. Os novos pegam os três bugs (pata de trás plantada no
+  empurrão, frente pousando primeiro, altura do corpo sem tranco, perna sem frear no
+  quadro-chave, cascos plantados na sacudida, sacudida da cabeça pro rabo, emenda pulo→número).

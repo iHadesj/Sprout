@@ -50,7 +50,8 @@ export function FawnModel({ ref, material, eyeMaterial }: FawnModelProps) {
   const parts = fawnParts()
   const root = useRef<Group>(null)
   const body = useRef<Group>(null)
-  const neck = useRef<Group>(null)
+  const neckBase = useRef<Group>(null)
+  const neckTop = useRef<Group>(null)
   const head = useRef<Group>(null)
   const tail = useRef<Group>(null)
   const ears = useRef<(Group | null)[]>([])
@@ -72,12 +73,16 @@ export function FawnModel({ ref, material, eyeMaterial }: FawnModelProps) {
       }
       const legs: LegPose[] = [pose.front[0], pose.front[1], pose.hind[0], pose.hind[1]]
       legs.forEach((leg, i) => {
-        if (upper.current[i]) upper.current[i]!.rotation.x = leg.upper
+        // x: pra frente e pra trás; z: abrir pro lado (pastar, firmar na sacudida)
+        upper.current[i]?.rotation.set(leg.upper, 0, leg.out ?? 0)
         if (lower.current[i]) lower.current[i]!.rotation.x = leg.lower
       })
-      // o pescoço faz parte da virada e a cabeça faz o resto
+      // o pescoço faz parte da virada e a cabeça faz o resto; a dobra se divide entre a base
+      // (que dobra mais, como pescoço de bicho) e o gomo de cima
       const yaw = look.yaw * pose.look
-      neck.current?.rotation.set(pose.neck, yaw * 0.38, 0, 'YXZ')
+      const side = yaw * 0.19 + pose.sway * 0.5
+      neckBase.current?.rotation.set(pose.neck * RIG.neck.split, side, 0, 'YXZ')
+      neckTop.current?.rotation.set(pose.neck * (1 - RIG.neck.split), side, 0, 'YXZ')
       if (head.current) {
         // a cabeça desfaz a inclinação do pescoço (fica nivelada) e só então vira, levanta e tomba
         const { q, turn } = scratch
@@ -124,25 +129,28 @@ export function FawnModel({ ref, material, eyeMaterial }: FawnModelProps) {
           <group ref={tail} position={[0, RIG.tail.y, RIG.tail.z]}>
             <mesh geometry={parts.tail} material={material} castShadow />
           </group>
-          <group ref={neck} position={[0, RIG.neck.y, RIG.neck.z]}>
-            <mesh geometry={parts.neck} material={material} castShadow />
-            <group ref={head} position={[0, RIG.neck.length, 0]}>
-              <mesh geometry={parts.head} material={material} castShadow />
-              {[1, -1].map((side, i) => (
-                <group key={side}>
-                  <group position={[FACE.ear.x * side, FACE.ear.y, FACE.ear.z]} ref={(g) => void (ears.current[i] = g)}>
-                    <mesh geometry={parts.ear} material={material} castShadow />
+          <group ref={neckBase} position={[0, RIG.neck.y, RIG.neck.z]}>
+            <mesh geometry={parts.neckBase} material={material} castShadow />
+            <group ref={neckTop} position={[0, RIG.neck.base, 0]}>
+              <mesh geometry={parts.neckTop} material={material} castShadow />
+              <group ref={head} position={[0, RIG.neck.top, 0]}>
+                <mesh geometry={parts.head} material={material} castShadow />
+                {[1, -1].map((side, i) => (
+                  <group key={side}>
+                    <group position={[FACE.ear.x * side, FACE.ear.y, FACE.ear.z]} ref={(g) => void (ears.current[i] = g)}>
+                      <mesh geometry={parts.ear} material={material} castShadow />
+                    </group>
+                    <group
+                      position={[FACE.eye.x * side, FACE.eye.y, FACE.eye.z]}
+                      rotation={[0, -0.3 * side, 0]}
+                      scale={[side, 1, 1]}
+                      ref={(g) => void (eyes.current[i] = g)}
+                    >
+                      <mesh geometry={parts.eye} material={eyeMaterial} />
+                    </group>
                   </group>
-                  <group
-                    position={[FACE.eye.x * side, FACE.eye.y, FACE.eye.z]}
-                    rotation={[0, -0.3 * side, 0]}
-                    scale={[side, 1, 1]}
-                    ref={(g) => void (eyes.current[i] = g)}
-                  >
-                    <mesh geometry={parts.eye} material={eyeMaterial} />
-                  </group>
-                </group>
-              ))}
+                ))}
+              </group>
             </group>
           </group>
         </group>

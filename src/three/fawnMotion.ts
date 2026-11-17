@@ -19,26 +19,34 @@ export interface Vec2 {
 export interface LegPose {
   upper: number
   lower: number
+  /** abre a perna pro lado, girando no quadril: positivo leva o casco pro +x (o lado da perna esquerda) */
+  out?: number
 }
 
 export interface FawnPose {
-  /** altura do casco mais baixo acima do chão (pulo) */
+  /** altura do casco mais baixo acima do chão (só vale com as patas no ar) */
   lift: number
-  /** inclinação do corpo no ar: positivo = focinho pra baixo */
+  /** inclinação do corpo: positivo = focinho pra baixo */
   pitch: number
-  /** tombo lateral do corpo: o peso caindo pra um lado no pulo, e a sacudida */
+  /** tombo lateral do tronco: o peso caindo pra um lado no pulo, e a sacudida */
   roll: number
-  /** 1 = patas no chão (a inclinação é calculada pra todas tocarem), 0 = no ar */
-  grounded: number
+  /**
+   * Quanto cada par de patas está apoiado [frente, trás]: 1 = cascos plantados no chão,
+   * 0 = no ar. Com um par só apoiado, o corpo gira em volta dele (é o que deixa a pata de trás
+   * empurrar o chão no pulo, em vez de o bicho inteiro levitar).
+   */
+  contact: [number, number]
   /** achatar/esticar o corpo (1 = normal) */
   squash: number
   /** pernas [esquerda, direita] */
   front: [LegPose, LegPose]
   hind: [LegPose, LegPose]
-  /** pescoço: 0 = em pé, maior = esticado pra frente */
+  /** pescoço: 0 = em pé, maior = dobrado pra frente e pra baixo (dividido entre as duas juntas) */
   neck: number
+  /** pescoço pro lado (radianos): o balanço da sacudida, o mexer de quem belisca a grama */
+  sway: number
   headPitch: number
-  /** cabeça de ladinho (curiosidade) */
+  /** cabeça de ladinho (curiosidade), ou girando em volta do focinho (sacudida) */
   headRoll: number
   /** 0 a 1: quanto a cabeça segue a câmera */
   look: number
@@ -59,49 +67,82 @@ export const RIG = {
   hind: { x: 0.04, y: 0.225, z: -0.112, upper: 0.115, lower: 0.118 },
   /** perna de trás parada: coxa pra trás, canela voltando pra frente (o "joelho ao contrário") */
   hindRest: { upper: 0.38, lower: -0.46 },
-  neck: { y: 0.262, z: 0.124, length: 0.108 },
+  /**
+   * Pescoço em dois gomos: a base sai de dentro do peito e o de cima leva a cabeça. Cada junta
+   * é o centro de uma esfera da geometria, então girar nunca abre buraco. `split` = quanto da
+   * dobra fica na base (o pescoço de bicho dobra mais lá embaixo, perto do ombro).
+   */
+  neck: { y: 0.25, z: 0.118, base: 0.068, top: 0.07, split: 0.6 },
   tail: { y: 0.272, z: -0.166 },
 }
 
 type Pair = 'front' | 'hind'
+type V3 = [number, number, number]
 
-/** Altura do casco (0 = chão com o corpo parado) pra uma perna, com o corpo inclinado `pitch`. */
-export function footY(pair: Pair, leg: LegPose, pitch: number): number {
-  const j = RIG[pair]
-  const hip = RIG.pivotY + (j.y - RIG.pivotY) * Math.cos(pitch) - j.z * Math.sin(pitch)
-  return hip - j.upper * Math.cos(pitch + leg.upper) - j.lower * Math.cos(pitch + leg.upper + leg.lower)
-}
-
-const lowest = (pair: Pair, legs: [LegPose, LegPose], pitch: number) => Math.min(footY(pair, legs[0], pitch), footY(pair, legs[1], pitch))
+// as mesmas rotações do three (rotation.x e rotation.z), escritas à mão pra não depender dele
+const rotX = ([x, y, z]: V3, a: number): V3 => [x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)]
+const rotZ = ([x, y, z]: V3, a: number): V3 => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z]
 
 /**
- * Onde o corpo fica: a inclinação (no chão, a que faz as patas da frente e de trás tocarem
- * juntas) e a altura (o casco mais baixo nunca afunda no chão).
+ * Altura do casco (0 = chão com o corpo parado) pra uma perna, com o tronco inclinado `pitch` e
+ * tombado `roll`. `side` = +1 pra perna esquerda (+x), -1 pra direita. É a mesma conta que o
+ * three faz com os grupos do Fawn.tsx: canela dentro da coxa, coxa dentro do tronco.
+ */
+export function footY(pair: Pair, leg: LegPose, pitch: number, roll = 0, side = 1): number {
+  const j = RIG[pair]
+  const knee = rotX([0, -j.lower, 0], leg.lower)
+  let v = rotX(rotZ([0, knee[1] - j.upper, knee[2]], leg.out ?? 0), leg.upper)
+  v = [v[0] + side * j.x, v[1] + j.y - RIG.pivotY, v[2] + j.z]
+  v = rotX(rotZ(v, roll), pitch)
+  return RIG.pivotY + v[1]
+}
+
+const lowest = (pair: Pair, legs: [LegPose, LegPose], pitch: number, roll: number) =>
+  Math.min(footY(pair, legs[0], pitch, roll, 1), footY(pair, legs[1], pitch, roll, -1))
+
+/** O casco mais baixo de todos, pra uma inclinação. */
+const lowestFoot = (pose: FawnPose, pitch: number) => Math.min(lowest('front', pose.front, pitch, pose.roll), lowest('hind', pose.hind, pitch, pose.roll))
+
+/**
+ * Onde o corpo fica: a inclinação e a altura do meio do tronco.
+ * - Os dois pares apoiados: a inclinação é a que faz as patas da frente e de trás tocarem juntas.
+ * - Um par só: esse par fica no chão e o corpo gira em volta dele (empurrar, pousar).
+ * - No ar: o casco mais baixo fica `lift` acima do chão.
+ * Em qualquer caso, nenhum casco afunda no chão.
  */
 export function settle(pose: FawnPose): { pitch: number; y: number } {
+  const [front, hind] = pose.contact
   let pitch = pose.pitch
-  if (pose.grounded > 0) {
+  const both = Math.min(front, hind)
+  if (both > 0) {
     // método da secante: acha a inclinação em que os dois pares de patas ficam na mesma altura
-    const gap = (p: number) => lowest('front', pose.front, p) - lowest('hind', pose.hind, p)
+    const gap = (p: number) => lowest('front', pose.front, p, pose.roll) - lowest('hind', pose.hind, p, pose.roll)
     let p0 = 0
     let p1 = 0.05
     for (let i = 0; i < 8; i++) {
       const g0 = gap(p0)
       const g1 = gap(p1)
       if (Math.abs(g1 - g0) < 1e-9) break
-      const next = clamp(p1 - (g1 * (p1 - p0)) / (g1 - g0), -0.6, 0.6)
+      const next = clamp(p1 - (g1 * (p1 - p0)) / (g1 - g0), -0.7, 0.7)
       p0 = p1
       p1 = next
     }
-    pitch = lerp(pose.pitch, p1, pose.grounded)
+    pitch = lerp(pose.pitch, p1, both)
   }
-  const low = Math.min(lowest('front', pose.front, pitch), lowest('hind', pose.hind, pitch))
-  return { pitch, y: pose.lift - low }
+  const lowFront = lowest('front', pose.front, pitch, pose.roll)
+  const lowHind = lowest('hind', pose.hind, pitch, pose.roll)
+  const low = Math.min(lowFront, lowHind)
+  let y = pose.lift - low
+  if (front + hind > 1e-6) {
+    const planted = (front * -lowFront + hind * -lowHind) / (front + hind)
+    y = lerp(y, planted, Math.max(front, hind))
+  }
+  return { pitch, y: Math.max(y, -low) }
 }
 
 // ---------- poses ----------
 
-const leg = (upper: number, lower: number): LegPose => ({ upper, lower })
+const leg = (upper: number, lower: number, out = 0): LegPose => ({ upper, lower, out })
 
 function stand(): FawnPose {
   const h = RIG.hindRest
@@ -109,11 +150,12 @@ function stand(): FawnPose {
     lift: 0,
     roll: 0,
     pitch: 0,
-    grounded: 1,
+    contact: [1, 1],
     squash: 1,
     front: [leg(0, 0), leg(0, 0)],
     hind: [leg(h.upper, h.lower), leg(h.upper, h.lower)],
     neck: 0.5,
+    sway: 0,
     headPitch: 0,
     headRoll: 0,
     look: 0,
@@ -125,21 +167,22 @@ function stand(): FawnPose {
 }
 
 function mixLeg(a: LegPose, b: LegPose, k: number): LegPose {
-  return leg(lerp(a.upper, b.upper, k), lerp(a.lower, b.lower, k))
+  return leg(lerp(a.upper, b.upper, k), lerp(a.lower, b.lower, k), lerp(a.out ?? 0, b.out ?? 0, k))
 }
 
 /** Mistura de duas poses (0 = a, 1 = b). */
 export function mixPose(a: FawnPose, b: FawnPose, k: number): FawnPose {
-  const n = (key: 'lift' | 'pitch' | 'roll' | 'grounded' | 'squash' | 'neck' | 'headPitch' | 'headRoll' | 'look' | 'tail' | 'tailWag' | 'blink') => lerp(a[key], b[key], k)
+  const n = (key: 'lift' | 'pitch' | 'roll' | 'squash' | 'neck' | 'sway' | 'headPitch' | 'headRoll' | 'look' | 'tail' | 'tailWag' | 'blink') => lerp(a[key], b[key], k)
   return {
     lift: n('lift'),
     roll: n('roll'),
     pitch: n('pitch'),
-    grounded: n('grounded'),
+    contact: [lerp(a.contact[0], b.contact[0], k), lerp(a.contact[1], b.contact[1], k)],
     squash: n('squash'),
     front: [mixLeg(a.front[0], b.front[0], k), mixLeg(a.front[1], b.front[1], k)],
     hind: [mixLeg(a.hind[0], b.hind[0], k), mixLeg(a.hind[1], b.hind[1], k)],
     neck: n('neck'),
+    sway: n('sway'),
     headPitch: n('headPitch'),
     headRoll: n('headRoll'),
     look: n('look'),
@@ -150,14 +193,32 @@ export function mixPose(a: FawnPose, b: FawnPose, k: number): FawnPose {
   }
 }
 
-/** Quadros-chave [tempo, ...valores], com entrada e saída suaves entre um e outro. */
-function keys(table: number[][], u: number): number[] {
+/**
+ * Quadros-chave [tempo, ...valores] ligados por uma curva que passa por todos eles sem parar
+ * em nenhum (Catmull-Rom: a velocidade em cada quadro vem dos vizinhos). Com o smoothstep de
+ * antes, cada quadro-chave freava até zero e arrancava de novo: era isso que deixava o pulo
+ * com cara de stop-motion. `loop` = a tabela é um ciclo (a última linha repete a primeira em t=1).
+ */
+function curve(table: number[][], u: number, loop = false): number[] {
+  const last = table.length - 1
   let i = 0
-  while (i < table.length - 2 && u > table[i + 1][0]) i++
+  while (i < last - 1 && u > table[i + 1][0]) i++
   const a = table[i]
   const b = table[i + 1]
-  const k = smooth(a[0], b[0], u)
-  return a.slice(1).map((v, n) => lerp(v, b[n + 1], k))
+  // vizinhos de fora da tabela: num ciclo, vêm do outro lado (com o tempo deslocado de 1)
+  const prev = i > 0 ? table[i - 1] : loop ? [table[last - 1][0] - 1, ...table[last - 1].slice(1)] : null
+  const next = i + 2 <= last ? table[i + 2] : loop ? [table[1][0] + 1, ...table[1].slice(1)] : null
+  const span = b[0] - a[0]
+  const s = clamp((u - a[0]) / span, 0, 1)
+  const s2 = s * s
+  const s3 = s2 * s
+  return a.slice(1).map((_, n) => {
+    const c = n + 1
+    // nas pontas de uma tabela que não é ciclo, a curva chega parada (o bicho começa e termina quieto)
+    const m0 = prev ? ((b[c] - prev[c]) / (b[0] - prev[0])) * span : 0
+    const m1 = next ? ((next[c] - a[c]) / (next[0] - a[0])) * span : 0
+    return (2 * s3 - 3 * s2 + 1) * a[c] + (s3 - 2 * s2 + s) * m0 + (-2 * s3 + 3 * s2) * b[c] + (s3 - s2) * m1
+  })
 }
 
 /** Sobe de 0 a 1 e volta, em volta de `center` (largura total `width`). */
@@ -169,7 +230,6 @@ const bump = (t: number, center: number, width: number) => {
 /**
  * O mesmo bump, mas dando a volta no ciclo (u de 0 a 1 é circular). É o que o pouso precisa:
  * o tranco acontece no fim do pulo e o corpo ainda está voltando no começo do pulo seguinte.
- * Com o bump normal, o fim de um pulo não batia com o começo do outro e dava um tranco.
  */
 const cycleBump = (u: number, center: number, width: number) => {
   const away = Math.abs((((u - center + 1.5) % 1) + 1) % 1 - 0.5)
@@ -177,44 +237,99 @@ const cycleBump = (u: number, center: number, width: number) => {
   return x <= 0 ? 0 : x * x * (3 - 2 * x)
 }
 
-// colunas: tempo | frente (coxa, canela) | trás (coxa, canela) | inclinação | pescoço | orelhas | rabo | achatar
-const HOP = [
-  [0.0, -0.38, 0.85, 0.85, -1.35, 0.0, 0.62, 0.35, 0.15, 0.93], // agachado, pronto pra pular
-  [0.14, -0.8, 1.35, 0.98, -0.62, -0.3, 0.42, -0.35, 0.35, 1.05], // empurra com as de trás
-  [0.5, -1.0, 1.7, 0.55, -1.55, -0.04, 0.5, -0.15, 0.75, 1.0], // no alto, tudo encolhido
-  [0.8, -0.72, 0.3, 0.22, -1.05, 0.26, 0.58, 0.25, 0.45, 1.0], // estica as da frente pra pousar
-  [0.9, -0.42, 0.4, 0.45, -1.05, 0.14, 0.68, 0.6, 0.25, 0.95],
-  [1.0, -0.38, 0.85, 0.85, -1.35, 0.0, 0.62, 0.35, 0.15, 0.93],
-]
-const AIR_START = 0.12
-const AIR_END = 0.9
+/** Curva de Hermite: vai de `a` (velocidade `ma`) a `b` (velocidade `mb`), com s de 0 a 1. */
+function hermite(a: number, b: number, ma: number, mb: number, s: number): number {
+  const s2 = s * s
+  const s3 = s2 * s
+  return (2 * s3 - 3 * s2 + 1) * a + (s3 - 2 * s2 + s) * ma + (-2 * s3 + 3 * s2) * b + (s3 - s2) * mb
+}
+
+/** Quanto antes de largar o chão o voo já começa a puxar o corpo (mesma unidade de `from`/`to`). */
+const PUSH = 0.06
 
 /**
- * Um pulo (u de 0 a 1): agacha, sobe encolhendo as pernas, pousa. `height` = altura do pulo,
- * `roll` = quanto o corpo tomba pro lado no ar (o peso caindo, que tira o jeito de brinquedo
- * de corda). O tombo nasce e morre dentro do pulo, então um pulo emenda no outro sem tranco.
+ * O voo: o corpo sai do chão com a velocidade que o empurrão deu, sobe `height` acima do mais
+ * alto entre decolar e pousar, e desce freando (as patas esticadas amortecem o pouso). As pernas
+ * fazem o que a pose manda; só a altura do corpo segue essa curva.
+ *
+ * Por que não uma parábola pura: a perna de trás, girando pra trás no fim do empurrão, perde
+ * alcance, então o corpo vinha quase parado e de repente arrancava na velocidade da parábola.
+ * Era um quique bem no instante de sair do chão. Aqui a curva começa um tico antes (`PUSH`),
+ * com a velocidade que o corpo já tinha, e não quebra.
  */
-export function hopPose(u: number, height: number, roll = 0): FawnPose {
-  const at = (x: number) => keys(HOP, ((x % 1) + 1) % 1)
+function airborne(pose: FawnPose, u: number, frame: (u: number) => FawnPose, from: number, to: number, height: number): FawnPose {
+  const start = from - PUSH
+  if (u <= start || u >= to || height <= 0) return pose
+  const yAt = (x: number) => settle(frame(x)).y
+  const y0 = yAt(start)
+  const v0 = (y0 - yAt(start - 0.01)) / 0.01
+  const y1 = yAt(to)
+  const mid = lerp(from, to, 0.5)
+  const top = Math.max(yAt(from), y1) + height
+  // chegando: 45% da velocidade de uma parábola, pra pousar macio
+  const v1 = (-0.45 * 2 * (top - y1)) / (to - mid)
+  const body = u < mid ? hermite(y0, top, v0 * (mid - start), 0, (u - start) / (mid - start)) : hermite(top, y1, 0, v1 * (to - mid), (u - mid) / (to - mid))
+  // no ar ninguém está apoiado: guarda a inclinação de agora e converte a altura do corpo na do
+  // casco mais baixo (é o que o settle sabe ler)
+  pose.pitch = settle(pose).pitch
+  pose.contact = [0, 0]
+  pose.lift = Math.max(0, body + lowestFoot(pose, pose.pitch))
+  return pose
+}
+
+// O pulo de filhote (o "bound" de cervo), olhando bicho de verdade:
+// 1. agachado, as patas de trás embaixo da barriga;
+// 2. as da frente saem primeiro, dobrando o joelho; as de trás ficam plantadas e esticam,
+//    empurrando o corpo pra cima e pra frente (focinho sobe);
+// 3. no ar: logo depois de sair, as de trás ainda esticadas pra trás e as da frente se
+//    abrindo pra frente; no alto, as de trás já vêm dobrando pra baixo do corpo;
+// 4. pousa com as da FRENTE (focinho desce) e o corpo passa por cima delas;
+// 5. as de trás descem embaixo da barriga e ele já está agachado pro próximo.
+// colunas: tempo | frente (coxa, canela) | trás (coxa, canela) | inclinação | pescoço | orelhas | rabo | achatar
+const HOP = [
+  [0.0, 0.26, 0.42, 0.2, -0.86, 0.0, 0.62, 0.3, 0.15, 0.97], // agachado, patas de trás embaixo da barriga
+  [0.1, -0.3, 1.15, 0.48, -0.74, -0.14, 0.54, 0.1, 0.3, 1.0], // as da frente saem, as de trás esticando
+  [0.2, -0.55, 1.5, 0.9, -0.2, -0.2, 0.44, -0.2, 0.5, 1.02], // as de trás saem do chão, esticadas
+  [0.33, -0.82, 1.05, 0.98, -0.62, -0.12, 0.44, -0.35, 0.62, 1.01], // no ar, se abrindo
+  [0.47, -0.86, 0.32, 0.55, -1.2, 0.05, 0.52, -0.25, 0.55, 1.0], // no alto: frente estica, trás recolhe
+  [0.6, -0.36, 0.0, 0.3, -1.15, 0.14, 0.62, 0.1, 0.4, 0.99], // toca o chão com as da frente
+  [0.72, 0.02, 0.55, 0.12, -1.0, 0.1, 0.66, 0.45, 0.3, 0.97], // passa por cima delas, as de trás vindo
+  [0.85, 0.22, 0.38, 0.16, -0.86, 0.02, 0.64, 0.4, 0.2, 0.965], // as de trás tocam: agachado de novo
+  [1.0, 0.26, 0.42, 0.2, -0.86, 0.0, 0.62, 0.3, 0.15, 0.97],
+]
+/** As patas de trás largam o chão aqui, e as da frente tocam aqui. Entre os dois: voo. */
+const HOP_TAKEOFF = 0.2
+const HOP_LAND = 0.6
+
+/** O pulo sem o voo: a pose das pernas e quem está apoiado. */
+function hopFrame(u: number, roll: number): FawnPose {
+  const at = (x: number) => curve(HOP, ((x % 1) + 1) % 1, true)
   const [fu, fl, hu, hl, pitch, neck, ears, tail, squash] = at(u)
   // o lado direito vai um tiquinho atrasado: as patas não se mexem como um carimbo
-  const [rfu, rfl, rhu, rhl] = u < 0.04 || u > 0.96 ? [fu, fl, hu, hl] : at(u - 0.035)
-  const v = clamp((u - AIR_START) / (AIR_END - AIR_START), 0, 1)
+  const [rfu, rfl, rhu, rhl] = at(u - 0.03)
   const pose = stand()
-  pose.lift = height * 4 * v * (1 - v)
   pose.pitch = pitch
-  pose.roll = roll * 4 * v * (1 - v)
-  pose.grounded = 1 - smooth(0.06, 0.16, u) + smooth(0.84, 0.95, u)
-  // pouso: o corpo afunda um tico e volta, em vez de parar seco no chão
-  pose.squash = squash - 0.055 * cycleBump(u, 0.945, 0.17) * (height > 0 ? 1 : 0)
+  pose.contact = [1 - smooth(0.015, 0.075, u) + smooth(HOP_LAND, HOP_LAND + 0.045, u), 1 - smooth(HOP_TAKEOFF - 0.05, HOP_TAKEOFF, u) + smooth(0.77, 0.86, u)]
+  const air = clamp((u - HOP_TAKEOFF) / (HOP_LAND - HOP_TAKEOFF), 0, 1)
+  pose.roll = roll * 4 * air * (1 - air)
+  pose.squash = squash
   pose.front = [leg(fu, fl), leg(rfu, rfl)]
   pose.hind = [leg(hu, hl), leg(rhu, rhl)]
-  pose.neck = neck + 0.1 * cycleBump(u, 0.95, 0.2)
-  // as orelhas batem pra baixo no tranco do pouso
-  const flop = 0.55 * cycleBump(u, 0.96, 0.18)
-  pose.ears = [ears - flop, ears * 0.8 - flop * 1.2]
+  // pouso: o pescoço dá um tranco pra baixo e as orelhas batem, um tiquinho depois das patas
+  pose.neck = neck + 0.1 * cycleBump(u, 0.68, 0.22)
+  const flop = 0.5 * cycleBump(u, 0.7, 0.2)
+  pose.ears = [ears - flop, ears * 0.85 - flop * 1.2]
   pose.tail = tail
   return pose
+}
+
+/**
+ * Um pulo (u de 0 a 1): agacha, empurra com as de trás, voa, pousa com as da frente. `height` =
+ * quanto o corpo sobe além da linha entre decolar e pousar; `roll` = quanto o corpo tomba pro
+ * lado no ar (o peso caindo, que tira o jeito de brinquedo de corda).
+ */
+export function hopPose(u: number, height: number, roll = 0): FawnPose {
+  return airborne(hopFrame(u, roll), u, (x) => hopFrame(x, roll), HOP_TAKEOFF, HOP_LAND, height)
 }
 
 /**
@@ -228,18 +343,30 @@ export function hopShapes(hops: number, seed = 0): { seconds: number; height: nu
   const random = rng(hashString(`hop:${seed}:${hops}`))
   return Array.from({ length: hops }, (_, i) => {
     const last = i === hops - 1
-    const slow = 0.9 + random() * 0.26
+    const slow = 0.92 + random() * 0.2
     return {
       seconds: HOP_SECONDS * (last ? 1.1 : slow),
-      height: last ? 0.12 + random() * 0.03 : 0.17 + random() * 0.08,
-      roll: (i % 2 === 0 ? 1 : -1) * (0.05 + random() * 0.05),
+      height: last ? 0.06 + random() * 0.02 : 0.09 + random() * 0.04,
+      roll: (i % 2 === 0 ? 1 : -1) * (0.04 + random() * 0.04),
     }
   })
 }
 
-/** Quanto do pulo já andou pra frente (0 a 1): quase tudo acontece no ar. */
+/**
+ * Quanto do pulo já andou pra frente (0 a 1). A velocidade sobe no empurrão, fica constante no
+ * ar (no ar ninguém acelera) e cai depois do pouso, sem nunca zerar: o corpo vem embalado.
+ */
+const hopSpeed = (u: number) => 0.18 + 0.82 * smooth(0.02, HOP_TAKEOFF, u) - 0.82 * smooth(HOP_LAND, 0.9, u)
+const HOP_ADVANCE = (() => {
+  const steps = 200
+  const table = [0]
+  for (let i = 1; i <= steps; i++) table.push(table[i - 1] + hopSpeed((i - 0.5) / steps))
+  return table.map((v) => v / table[steps])
+})()
 function hopAdvance(u: number): number {
-  return 0.04 * smooth(0, AIR_START, u) + 0.92 * smooth(AIR_START, AIR_END, u) + 0.04 * smooth(AIR_END, 1, u)
+  const x = clamp(u, 0, 1) * (HOP_ADVANCE.length - 1)
+  const i = Math.min(HOP_ADVANCE.length - 2, Math.floor(x))
+  return lerp(HOP_ADVANCE[i], HOP_ADVANCE[i + 1], x - i)
 }
 
 export const LOOK_SECONDS = 2.9
@@ -249,7 +376,7 @@ export const LOOK_SECONDS = 2.9
  * rabinho. `from` = a pose em que ele estava (o fim do número que acabou), pra emendar sem pulo.
  */
 export function lookPose(t: number, from: FawnPose = hopPose(1, 0)): FawnPose {
-  const pose = mixPose(from, stand(), smooth(0, 0.42, t))
+  const pose = mixPose(from, stand(), smooth(0, 0.5, t))
   pose.look = smooth(0.2, 0.8, t)
   const alert = smooth(0.25, 0.65, t)
   pose.ears = [lerp(0.3, 1, alert), lerp(0.3, 1, alert) - 1.1 * bump(t, 1.1, 0.26) - 0.6 * bump(t, 1.42, 0.2)]
@@ -277,8 +404,8 @@ export const FAWN_ACTS: FawnAct[] = ['chegada', 'pastando', 'sacudida', 'pulinho
 /** Quanto dura cada número e quanto ele fica olhando depois (quem fez mais, olha menos). */
 const ACTS: Record<FawnAct, { seconds: number; look: number }> = {
   chegada: { seconds: 0, look: LOOK_SECONDS },
-  pastando: { seconds: 2.7, look: 1.5 },
-  sacudida: { seconds: 1.5, look: 1.8 },
+  pastando: { seconds: 3.2, look: 1.5 },
+  sacudida: { seconds: 1.6, look: 1.8 },
   pulinho: { seconds: 1.5, look: 1.7 },
 }
 
@@ -294,65 +421,110 @@ export function actPose(act: FawnAct, t: number): FawnPose {
   return lookPose(0)
 }
 
-/** Entra e sai suave: 0 nas pontas do número, 1 no meio. */
-const settleIn = (t: number, seconds: number) => smooth(0, 0.35, t) * (1 - smooth(seconds - 0.4, seconds, t))
-
 /**
- * Pastando: dobra as patas da frente e estica o pescoço até a grama (quem inclina o corpo é o
- * `settle`, que mantém os quatro cascos no chão), belisca duas vezes e levanta a cabeça.
+ * Pastando, como filhote faz: o pescoço dele não chega no chão com as pernas retas, então ele
+ * abre as patas da frente pros lados (e o corpo desce na frente), dobra o pescoço lá na base e
+ * aponta o focinho pra grama. Belisca, mastiga mexendo a cabeça, uma orelha vira pra trás
+ * escutando e ele levanta a cabeça de uma vez, já atento.
  */
 export function grazePose(t: number, seconds: number): FawnPose {
-  const down = settleIn(t, seconds)
+  const down = smooth(0.05, 0.85, t) * (1 - smooth(seconds - 0.55, seconds - 0.05, t))
+  // o corpo arma um tiquinho antes do pescoço: primeiro as patas abrem, depois a cabeça desce
+  const legs = smooth(0, 0.6, t) * (1 - smooth(seconds - 0.45, seconds, t))
   const pose = stand()
-  pose.front = [mixLeg(leg(0, 0), leg(-0.24, 0.62), down), mixLeg(leg(0, 0), leg(-0.2, 0.56), down)]
-  pose.neck = lerp(0.5, 1.46, down)
-  pose.headPitch = lerp(0, 0.5, down) + 0.14 * (bump(t, 1.05, 0.45) + bump(t, 1.85, 0.45))
-  pose.ears = [lerp(0.3, -0.25, down), lerp(0.3, -0.35, down)]
-  pose.tail = 0.12 * bump(t, 1.5, 1.2)
-  pose.tailWag = Math.sin(t * TAU * 2.6) * 0.3 * bump(t, 1.5, 1.4)
-  pose.roll = 0.05 * Math.sin(t * 1.7) * down
-  pose.squash = 1 + 0.01 * Math.sin(t * 4.2)
+  const h = RIG.hindRest
+  pose.front = [leg(-0.14 * legs, 0.16 * legs, 0.52 * legs), leg(-0.08 * legs, 0.12 * legs, -0.47 * legs)]
+  pose.hind = [leg(h.upper + 0.05 * legs, h.lower - 0.08 * legs, 0.05 * legs), leg(h.upper + 0.05 * legs, h.lower - 0.08 * legs, -0.05 * legs)]
+  // dois beliscões: a cabeça puxa a grama (sobe um tico e volta), entre eles a mastigação
+  const tug = bump(t, 1.35, 0.32) + bump(t, 2.1, 0.32)
+  pose.neck = lerp(0.5, 2.75, down) - 0.12 * tug * down
+  pose.headPitch = lerp(0, 1.3, down) - 0.18 * tug * down
+  pose.sway = 0.09 * Math.sin((t - 0.8) * 2.6) * smooth(0.8, 1.2, t) * down
+  pose.headRoll = 0.06 * Math.sin((t - 0.8) * 5.2) * down
+  // uma orelha mexe e vira pra trás (escutando) no meio da refeição
+  pose.ears = [lerp(0.3, 0.05, down) + 0.5 * bump(t, 1.75, 0.25), lerp(0.3, -0.2, down) - 0.45 * bump(t, 2.4, 0.5)]
+  pose.tail = 0.12 * bump(t, 1.7, 1.2)
+  pose.tailWag = Math.sin(t * TAU * 2.6) * 0.3 * bump(t, 1.7, 1.4)
+  pose.squash = 1 + 0.008 * Math.sin(t * 4.2)
   return pose
 }
 
-/** Sacudida: sacode o corpo do pescoço pro rabo, orelhas batendo. Dura pouco, como o bicho. */
+/**
+ * Sacudida, do jeito que cachorro e cervo fazem: firma as patas, e a sacudida nasce na cabeça
+ * (que gira em volta do focinho), passa pro tronco (que gira em volta da espinha) e termina no
+ * rabo. Os cascos ficam plantados: as pernas compensam o giro do tronco no quadril. Antes o
+ * tronco inteiro girava com as pernas penduradas e os cascos varriam o chão pros lados.
+ */
 export function shakePose(t: number, seconds: number): FawnPose {
-  const force = settleIn(t, seconds) * (1 - smooth(1.0, 1.35, t))
+  const HZ = 6
+  const wave = (delay: number) => Math.sin((t - delay) * TAU * HZ)
+  const window = (a: number, b: number, c: number, d: number) => smooth(a, b, t) * (1 - smooth(c, d, t))
+  const brace = window(0, 0.25, seconds - 0.4, seconds - 0.05)
+  const head = window(0.12, 0.3, 0.8, 1.05)
+  const body = window(0.25, 0.45, 0.95, 1.2)
+  const tail = window(0.4, 0.6, 1.1, 1.35)
   const pose = stand()
-  const wave = (delay: number) => Math.sin((t - delay) * TAU * 7.5)
-  pose.roll = 0.3 * force * wave(0)
-  pose.headRoll = 0.34 * force * wave(0.04)
-  pose.neck = 0.5 + 0.1 * force * wave(0.06)
-  pose.tailWag = 1.1 * force * wave(0.12)
-  pose.tail = 0.35 * force
-  // a orelha é mais leve que o corpo: bate mais e um pouco depois
-  pose.ears = [0.3 - 1.2 * force * Math.abs(wave(0.05)), 0.3 - 1.2 * force * Math.abs(wave(0.09))]
-  pose.squash = 1 - 0.035 * force * Math.abs(wave(0.02))
-  pose.blink = Math.min(1, force * 1.4)
+  const h = RIG.hindRest
+  pose.roll = 0.1 * body * wave(0.06)
+  // a perna gira o contrário do tronco (o casco fica onde estava) e abre um tico pra firmar
+  const counter = -pose.roll * 0.92
+  pose.front = [leg(0, 0, counter + 0.05 * brace), leg(0, 0, counter - 0.05 * brace)]
+  pose.hind = [leg(h.upper, h.lower, counter + 0.05 * brace), leg(h.upper, h.lower, counter - 0.05 * brace)]
+  pose.neck = 0.5 + 0.18 * brace
+  pose.headPitch = 0.1 * brace
+  pose.headRoll = 0.5 * head * wave(0)
+  pose.sway = 0.12 * head * wave(0.02)
+  // a orelha é mais leve que a cabeça: chicoteia atrasada
+  pose.ears = [0.25 - 1.0 * head * Math.abs(wave(0.035)), 0.25 - 1.0 * head * Math.abs(wave(0.055))]
+  pose.tail = 0.4 * tail
+  pose.tailWag = 1.0 * tail * wave(0.14)
+  pose.squash = 1 - 0.02 * brace
+  // olho fechado enquanto a cabeça sacode, e uma piscada no fim
+  pose.blink = Math.min(1, head * 1.3 + bump(t, 1.3, 0.16))
   return pose
 }
 
-/** Pulinho: dois pulos curtos no lugar, de pernas duras — o "pronk" que filhote faz à toa. */
-export function pronkPose(t: number, seconds: number): FawnPose {
-  const first = bump(t, 0.5, 0.62)
-  const second = bump(t, 1.05, 0.56)
-  const air = Math.max(first, second * 0.86)
-  // no fim ele já está parado: o que sobra de rabo e balanço vai sumindo
-  const calm = 1 - smooth(seconds - 0.35, seconds, t)
+// colunas: tempo (s) | frente (coxa, canela) | trás (coxa, canela) | pescoço | orelhas | rabo | achatar
+const PRONK = [
+  [0.0, 0, 0, 0.38, -0.46, 0.5, 0.3, 0, 1],
+  [0.24, 0.06, 0.26, 0.2, -0.92, 0.62, 0.15, 0.2, 0.96], // agacha (as quatro dobram)
+  [0.36, -0.04, 0.02, 0.32, -0.22, 0.42, 0.5, 0.45, 1.02], // estica as quatro de uma vez
+  [0.5, -0.15, 0.1, 0.22, -0.32, 0.34, 0.95, 0.6, 1.01], // no ar de pernas duras, um tico pra baixo do corpo
+  [0.63, -0.03, 0.03, 0.32, -0.24, 0.42, 0.75, 0.5, 1.0], // toca as quatro juntas
+  [0.73, 0.07, 0.3, 0.18, -0.9, 0.6, -0.15, 0.3, 0.96], // amortece (orelhas batem)
+  [0.85, -0.04, 0.02, 0.32, -0.22, 0.44, 0.45, 0.45, 1.02], // de novo, mais baixinho
+  [0.96, -0.12, 0.08, 0.24, -0.3, 0.38, 0.85, 0.5, 1.01],
+  [1.07, -0.03, 0.03, 0.32, -0.24, 0.44, 0.6, 0.4, 1.0],
+  [1.17, 0.05, 0.24, 0.22, -0.82, 0.58, -0.05, 0.25, 0.97],
+  [1.5, 0, 0, 0.38, -0.46, 0.5, 0.3, 0, 1],
+]
+const PRONK_AIR: [number, number, number][] = [
+  [0.36, 0.63, 0.11],
+  [0.85, 1.07, 0.08],
+]
+
+function pronkFrame(t: number): FawnPose {
+  const [fu, fl, hu, hl, neck, ears, tail, squash] = curve(PRONK, t)
   const pose = stand()
-  pose.lift = 0.16 * air
-  pose.grounded = 1 - smooth(0.12, 0.3, air)
-  // pernas duras, quase retas: é esse esticão que faz o pulinho parecer de filhote
-  const stiff = 0.5 * air
-  pose.front = [leg(-0.1 * air, 0.14 * air), leg(-0.08 * air, 0.12 * air)]
-  pose.hind = [leg(RIG.hindRest.upper * (1 - stiff), RIG.hindRest.lower * (1 - stiff)), leg(RIG.hindRest.upper * (1 - stiff), RIG.hindRest.lower * (1 - stiff))]
-  pose.pitch = -0.1 * air
-  pose.roll = 0.06 * Math.sin(t * 3.1) * Math.max(air, 0.25 * calm)
-  pose.squash = 1 + 0.07 * air - 0.05 * (bump(t, 0.86, 0.16) + bump(t, 1.38, 0.16))
-  pose.neck = 0.5 - 0.12 * air
-  pose.ears = [0.3 + 0.7 * air, 0.3 + 0.6 * air]
-  pose.tail = 0.3 * air
-  pose.tailWag = 0.4 * Math.sin(t * TAU * 3) * calm
+  pose.front = [leg(fu, fl), leg(fu, fl)]
+  pose.hind = [leg(hu, hl), leg(hu, hl)]
+  const grounded = PRONK_AIR.reduce((c, [a, b]) => c - smooth(a - 0.03, a, t) + smooth(b, b + 0.03, t), 1)
+  pose.contact = [grounded, grounded]
+  pose.neck = neck
+  pose.ears = [ears, ears * 0.9]
+  pose.tail = tail
+  pose.squash = squash
+  return pose
+}
+
+/** Pulinho: dois pulos no lugar com as quatro patas juntas e duras — o "pronk" que filhote faz à toa. */
+export function pronkPose(t: number, seconds: number): FawnPose {
+  let pose = pronkFrame(t)
+  for (const [a, b, height] of PRONK_AIR) pose = airborne(pose, t, pronkFrame, a, b, height)
+  // o corpo balança um pouco de lado e o rabo abana, sumindo no fim
+  const calm = 1 - smooth(seconds - 0.35, seconds, t)
+  pose.roll = 0.04 * Math.sin(t * 3.1) * calm * smooth(0.2, 0.5, t)
+  pose.tailWag = 0.4 * Math.sin(t * TAU * 3) * calm * smooth(0.3, 0.6, t)
   return pose
 }
 
@@ -368,6 +540,7 @@ export function startlePose(u: number, from: FawnPose = lookPose(LOOK_SECONDS)):
   pose.neck = lerp(from.neck, 0.3, bump(u, 0.35, 0.7)) + 0.25 * smooth(0.6, 1, u)
   pose.tail = k
   pose.headRoll = 0
+  pose.sway = 0
   return pose
 }
 
@@ -390,7 +563,7 @@ function gallopLeg(cycle: number, hind: boolean): LegPose {
 /** Galope (`cycle` = passadas desde o começo): corpo baixo, pescoço esticado, rabo branco em pé. */
 export function gallopPose(cycle: number): FawnPose {
   const pose = stand()
-  pose.grounded = 0
+  pose.contact = [0, 0]
   pose.hind = [gallopLeg(cycle, true), gallopLeg(cycle + 0.08, true)]
   pose.front = [gallopLeg(cycle + 0.45, false), gallopLeg(cycle + 0.55, false)]
   pose.pitch = 0.11 * Math.sin(TAU * cycle + 0.5)
@@ -487,7 +660,8 @@ export function fawnMoment(t: number, hops: number, show: FawnShow = DEFAULT_SHO
   tau -= enter
 
   const act = actSeconds(show.act)
-  if (tau < act) return { ...base, phase: 'act', pose: actPose(show.act, tau) }
+  // o número começa do agachado em que o último pulo pousou, sem pular pra pose dele
+  if (tau < act) return { ...base, phase: 'act', pose: mixPose(hopPose(1, 0), actPose(show.act, tau), smooth(0, 0.4, tau)) }
   tau -= act
 
   // o olhar emenda na pose em que o número terminou, pra cabeça não dar um pulo
