@@ -1,6 +1,6 @@
 // Escolha do som ambiente, na ficha do foco: silêncio, chuva, vento ou folhas.
-// O som é gerado no Web Audio (`lib/ambience.ts`), começa e para junto com esta peça, e a
-// escolha fica guardada neste navegador. Desligado por padrão.
+// O som vem de `lib/ambience.ts` (chuva e folhas são gravações em loop, vento é gerado), começa
+// e para junto com esta peça, e a escolha fica guardada neste navegador. Desligado por padrão.
 //
 // É um controle parado: não anima sozinho, como o resto da tela de foco.
 import { useEffect, useState } from 'react'

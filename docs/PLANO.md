@@ -740,6 +740,26 @@ Etapas, na ordem:
 - **Não dá pra conferir o som por aqui**: o que foi verificado é que as cápsulas aparecem,
   marcam, guardam a escolha e que ligar/desligar sem áudio liberado não quebra. Ouvir é com você.
 
+**Chuva e folhas gravadas (2026-11-17)**
+
+- [x] Chuva e folhas deixaram de ser ruído gerado: tocam as gravações de `public/sounds/`
+  (`chuva.mp3`, ~5 min; `folhas.mp3`, ~17 s). Vento continua gerado no Web Audio.
+- [x] Só um trecho toca, em looping até o foco acabar (qualquer duração): chuva usa 2 min a partir
+  da metade do arquivo; folhas, ~15 s a partir do 2º segundo. O fim e o começo dos arquivos ficam
+  de fora porque gravação costuma ter fade ali. O recorte é feito em memória, então o arquivo
+  original fica intacto e dá pra trocar o trecho mexendo só em `CLIPS` (`src/lib/ambience.ts`).
+- [x] A emenda do loop não dá clique nem "corte": `seamlessLoop` mistura o fim do trecho com o
+  som que vinha logo antes do começo dele (mistura de potência constante), então o loop vai
+  virando o começo aos poucos. A mistura é longa — 4 s na chuva, 2 s nas folhas (`blend` em
+  `CLIPS`) — porque com 1 s ainda dava pra notar a troca. Função pura, 4 testes novos.
+- [x] Download e recorte acontecem uma vez por aba (cache em `loops`); se o arquivo falhar, o foco
+  segue em silêncio e tenta de novo no próximo. Se a pessoa trocar de som enquanto a gravação
+  ainda carrega, o que chegar atrasado é ignorado.
+- [x] Volume pela metade: o vento foi de 0.2 pra 0.1; as gravações tocam a 0.5 do volume
+  original. O sininho do fim não mudou.
+- Os arquivos chegaram como `rain.mp3.mp3` e `leaves.mp3.mp3`; foram renomeados e movidos pra
+  `public/sounds/`. A chuva tem 7,5 MB e só é baixada quando alguém escolhe "Chuva".
+
 **Ajuste depois de olhar as fotos (2026-11-16)**
 
 Primeira versão de luz e estação ficou fraca demais nas fotos. O que mudou:
