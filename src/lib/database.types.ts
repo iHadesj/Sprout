@@ -149,11 +149,14 @@ export type Database = {
           invite_code: string
           timezone: string
           username: string | null
+          /** foto de perfil no bucket `avatars` (null = o raminho desenhado) */
+          avatar_path: string | null
         }
         Insert: never
         Update: {
           timezone?: string
           username?: string | null
+          avatar_path?: string | null
         }
         Relationships: []
       }
@@ -225,11 +228,11 @@ export type Database = {
       join_by_invite: { Args: { p_code: string }; Returns: string }
       list_friends: {
         Args: never
-        Returns: { direction: string; since: string; status: string; user_id: string; username: string | null }[]
+        Returns: { avatar_path: string | null; direction: string; since: string; status: string; user_id: string; username: string | null }[]
       }
       friend_ranking: {
         Args: never
-        Returns: { is_me: boolean; minutes: number; sessions: number; user_id: string; username: string | null }[]
+        Returns: { avatar_path: string | null; is_me: boolean; minutes: number; sessions: number; user_id: string; username: string | null }[]
       }
       friend_gardens: { Args: { p_user: string }; Returns: Database['public']['Tables']['gardens']['Row'][] }
       friend_plants: { Args: { p_user: string }; Returns: Database['public']['Tables']['plants']['Row'][] }

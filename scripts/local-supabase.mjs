@@ -2,8 +2,9 @@
 //
 // O banco é Postgres de verdade (PGlite) com as MESMAS migrations de supabase/migrations,
 // então RLS, RPCs e regras são as reais. Na frente fica uma imitação pequena das duas
-// APIs que o app usa: Auth (cadastro e login com JWT) e REST (o PostgREST: select,
-// insert, update com filtros simples, e RPC). Só o suficiente pro app rodar sem nuvem.
+// APIs que o app usa: Auth (cadastro e login com JWT), REST (o PostgREST: select,
+// insert, update com filtros simples, e RPC) e Storage (enviar, apagar e ler arquivo público,
+// pra foto de perfil). Só o suficiente pro app rodar sem nuvem.
 //
 // Uso: node scripts/local-supabase.mjs   (ou npm run dev:local, que sobe o app junto)
 
@@ -43,7 +44,8 @@ export async function startLocalSupabase({ port = 54321, dataDir } = {}) {
 async function migrate(db) {
   await db.exec(`create schema if not exists local_meta;
     create table if not exists local_meta.applied (name text primary key, at timestamptz default now());
-    create table if not exists local_meta.refresh_tokens (token text primary key, user_id uuid not null);`)
+    create table if not exists local_meta.refresh_tokens (token text primary key, user_id uuid not null);
+    create table if not exists local_meta.files (bucket text, name text, content_type text, bytes bytea, primary key (bucket, name));`)
   const applied = new Set((await db.query('select name from local_meta.applied')).rows.map((r) => r.name))
   const files = [
     ['supabase-stub.sql', join(ROOT, 'supabase', 'tests', 'supabase-stub.sql')],
@@ -74,8 +76,16 @@ async function handle(db, req, res) {
   cors(req, res)
   if (req.method === 'OPTIONS') return send(res, 204)
   const url = new URL(req.url, 'http://localhost')
-  const body = await readBody(req)
+  const raw = await readRaw(req)
 
+  // arquivos: o corpo é binário (a foto), não JSON
+  if (url.pathname.startsWith('/storage/v1/')) {
+    const claims = readClaims(req)
+    if (claims === 'expired') return send(res, 400, { statusCode: '401', error: 'Unauthorized', message: 'jwt expired' })
+    return storage(db, req, res, url, raw, claims)
+  }
+
+  const body = raw.length ? JSON.parse(raw.toString('utf8')) : null
   if (url.pathname.startsWith('/auth/v1/')) return auth(db, req, res, url, body)
 
   const claims = readClaims(req)
@@ -99,17 +109,11 @@ function cors(req, res) {
   res.setHeader('Access-Control-Max-Age', '600')
 }
 
-function readBody(req) {
+function readRaw(req) {
   return new Promise((resolve, reject) => {
-    let raw = ''
-    req.on('data', (chunk) => (raw += chunk))
-    req.on('end', () => {
-      try {
-        resolve(raw ? JSON.parse(raw) : null)
-      } catch (error) {
-        reject(error)
-      }
-    })
+    const chunks = []
+    req.on('data', (chunk) => chunks.push(chunk))
+    req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', reject)
   })
 }
@@ -117,6 +121,72 @@ function readBody(req) {
 function send(res, status, data, headers = {}) {
   res.writeHead(status, { ...(data === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers })
   res.end(data === undefined ? undefined : JSON.stringify(data))
+}
+
+// ---------- Storage (imitação da API de arquivos do Supabase) ----------
+//
+// O registro do arquivo vai pra storage.objects como o usuário da requisição, então as regras
+// (RLS) das migrations valem de verdade. O conteúdo fica em local_meta.files.
+
+function storageError(res, status, error, message) {
+  send(res, status, { statusCode: String(status), error, message })
+}
+
+async function storage(db, req, res, url, raw, claims) {
+  const path = decodeURIComponent(url.pathname.slice('/storage/v1/object/'.length))
+
+  // ler arquivo de bucket público: qualquer um, sem login
+  if (req.method === 'GET' && path.startsWith('public/')) {
+    const [bucket, ...rest] = path.slice('public/'.length).split('/')
+    const name = rest.join('/')
+    const { rows } = await db.query(
+      `select f.content_type, f.bytes from local_meta.files f join storage.buckets b on b.id = f.bucket
+        where b.public and f.bucket = $1 and f.name = $2`,
+      [bucket, name],
+    )
+    if (!rows[0]) return storageError(res, 400, 'not_found', 'Object not found')
+    res.writeHead(200, { 'Content-Type': rows[0].content_type, 'Cache-Control': 'max-age=3600' })
+    return res.end(Buffer.from(rows[0].bytes))
+  }
+
+  // enviar: POST /object/<bucket>/<caminho>
+  if (req.method === 'POST' || req.method === 'PUT') {
+    const [bucket, ...rest] = path.split('/')
+    const name = rest.join('/')
+    const type = String(req.headers['content-type'] ?? '').split(';')[0]
+    const info = (await db.query('select file_size_limit, allowed_mime_types from storage.buckets where id = $1', [bucket])).rows[0]
+    if (!info) return storageError(res, 400, 'Bucket not found', 'Bucket not found')
+    if (info.file_size_limit && raw.length > Number(info.file_size_limit)) return storageError(res, 413, 'Payload too large', 'The object exceeded the maximum allowed size')
+    if (info.allowed_mime_types && !info.allowed_mime_types.includes(type)) return storageError(res, 415, 'invalid_mime_type', `mime type ${type} is not supported`)
+    try {
+      const row = await asRequester(db, claims, (tx) =>
+        tx.query('insert into storage.objects (bucket_id, name) values ($1, $2) returning id', [bucket, name]),
+      )
+      await db.query(
+        `insert into local_meta.files (bucket, name, content_type, bytes) values ($1, $2, $3, $4)
+         on conflict (bucket, name) do update set content_type = excluded.content_type, bytes = excluded.bytes`,
+        [bucket, name, type, raw],
+      )
+      return send(res, 200, { Id: row.rows[0].id, Key: `${bucket}/${name}` })
+    } catch (error) {
+      if (error?.code === '42501') return storageError(res, 403, 'Unauthorized', 'new row violates row-level security policy')
+      if (error?.code === '23505') return storageError(res, 409, 'Duplicate', 'The resource already exists')
+      return storageError(res, 500, 'internal', String(error?.message ?? error))
+    }
+  }
+
+  // apagar: DELETE /object/<bucket> com { prefixes: [caminhos] }
+  if (req.method === 'DELETE') {
+    const bucket = path
+    const names = raw.length ? (JSON.parse(raw.toString('utf8')).prefixes ?? []) : []
+    const removed = await asRequester(db, claims, (tx) =>
+      tx.query('delete from storage.objects where bucket_id = $1 and name = any($2) returning name', [bucket, names]),
+    )
+    for (const { name } of removed.rows) await db.query('delete from local_meta.files where bucket = $1 and name = $2', [bucket, name])
+    return send(res, 200, removed.rows.map((r) => ({ bucket_id: bucket, name: r.name })))
+  }
+
+  storageError(res, 404, 'not_found', `rota não suportada: ${req.method} ${url.pathname}`)
 }
 
 // ---------- Auth (imitação do Supabase Auth / GoTrue) ----------

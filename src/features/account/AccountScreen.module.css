@@ -8,9 +8,12 @@
   padding: 28px 0 72px;
 }
 
+/* cabeçalho da ficha: a foto à esquerda e o @ ao lado, com a data e o e-mail embaixo */
 .header {
   display: grid;
-  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px 30px;
 }
 
 @media (min-width: 900px) {
@@ -19,27 +22,50 @@
   }
 }
 
-.header h1 {
-  font-size: clamp(40px, 7vw, 72px);
-  overflow-wrap: anywhere;
+/* celular: a foto em cima, o nome com a largura toda embaixo */
+@media (max-width: 559px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* só a foto fica à esquerda: a coluna do nome precisa da largura toda (com container-type,
+     uma coluna que encolhe até o conteúdo fica sem largura e o nome cai pro tamanho mínimo) */
+  .photo {
+    justify-self: start;
+  }
 }
 
-/* registros soltos, em alturas diferentes (sem tabela pautada) */
+.identity {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  /* o tamanho do @ é calculado sobre a largura desta coluna (unidade cqi) */
+  container-type: inline-size;
+}
+
+/* cada letra da Newsreader em negrito ocupa ~0,52 da altura: largura ÷ (letras × 0,52) */
+.identity h1 {
+  font-size: clamp(24px, calc(100cqi / (var(--chars) * 0.52)), 64px);
+  line-height: 1;
+  overflow-wrap: break-word;
+}
+
+/* registros soltos lado a lado, em alturas diferentes (sem tabela pautada) */
 .records {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px 48px;
+  gap: 8px 36px;
   margin: 0;
 }
 
 .records > div {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .records > div:nth-child(2) {
-  margin-top: 22px;
+  margin-top: 10px;
 }
 
 .records dt {
@@ -52,14 +78,62 @@
 
 .records dd {
   margin: 0;
-  font-size: 19px;
+  color: var(--ink-2);
+  font-size: 17px;
   overflow-wrap: anywhere;
+}
+
+/* a foto é o botão de trocar: um "+" verde no canto avisa */
+.photo {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.photoButton {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pebble);
+  background: none;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease);
+}
+
+.photoButton:hover:not(:disabled) {
+  transform: rotate(-3deg) scale(1.03);
+}
+
+.photoButton:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.photoBadge {
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--herb);
+  box-shadow: 0 0 0 3px var(--paper);
+  color: var(--herb-ink);
+}
+
+.photoSlot {
+  width: 120px;
+  height: 120px;
 }
 
 .section {
   display: grid;
   gap: 14px;
 }
+
 
 .form {
   display: grid;

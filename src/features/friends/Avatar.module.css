@@ -14,6 +14,17 @@
   background: color-mix(in srgb, var(--herb) 22%, var(--paper-card));
 }
 
+/* a foto ocupa a pedrinha inteira, cortada no formato dela */
+.avatar {
+  overflow: hidden;
+}
+
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .sprig {
   width: 64%;
   height: 72%;

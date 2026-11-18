@@ -1,0 +1,71 @@
+/* telinha de ajustar a foto: a janela em forma de pedrinha, a barrinha de zoom e os botões */
+.cropper {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.stage {
+  position: relative;
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  overflow: hidden;
+  touch-action: none; /* os dedos movem a foto, não a página */
+  cursor: grab;
+  user-select: none;
+}
+
+.stage:active {
+  cursor: grabbing;
+}
+
+.stage[data-loading] {
+  background: var(--paper-deep);
+}
+
+.photo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* a janela tem a mesma forma do avatar; em volta, o papel da folha cobre a foto quase toda */
+.hole {
+  position: absolute;
+  inset: 6%; /* = (1 - WINDOW) / 2, no avatarCrop.ts */
+  border-radius: var(--pebble);
+  box-shadow:
+    0 0 0 1.5px rgba(42, 40, 35, 0.35),
+    0 0 0 400px rgba(248, 244, 234, 0.8);
+  pointer-events: none;
+}
+
+.stage:focus-visible {
+  outline-offset: -3px;
+}
+
+.zoom {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  width: min(280px, 70vw);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.zoom input {
+  width: 100%;
+  accent-color: var(--herb);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}

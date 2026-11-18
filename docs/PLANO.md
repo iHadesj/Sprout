@@ -905,3 +905,76 @@ eram fixos em pixel, pensados pra tela alta: em 1093×520 o "Começar foco" saí
     `noteMede` projeta a borda da ilha e diz quanto da moldura ela ocupa. Ilha grande (39
     árvores): antes ia de 1–6% a 94–99% da largura na página do jardim (encostando nas bordas);
     agora fica entre 8% e 92%, fora do esfumado, em 1093×520, 1366×657, 1920×970 e 390×844.
+
+### Foto de perfil (2026-11-18)
+
+Pedido: cada pessoa escolhe a foto que quiser; aparece em todo lugar onde já existe avatar.
+Decidido: bucket **público** no Supabase Storage (o nome do arquivo é aleatório, então não dá
+pra adivinhar o link), **corte com telinha** (arrastar e dar zoom antes de salvar), e quem não
+tem foto continua com o raminho. A foto é reduzida no navegador (256 px, WebP) antes de subir,
+e redesenhar no canvas apaga os dados escondidos da foto (EXIF, inclusive a localização GPS).
+
+- [x] 1. Migration: bucket `avatars`, regras de quem grava, coluna `profiles.avatar_path`, amigos e ranking devolvendo a foto — 2026-11-18.
+  - `supabase/migrations/20261118120000_foto_de_perfil.sql`: bucket público `avatars` (até 300 KB,
+    só WebP, JPEG e PNG). Regras em `storage.objects`: enviar, ver e apagar só dentro da pasta
+    com o próprio id. Coluna `avatar_path` com uma regra (`check`) que exige o caminho na pasta
+    do dono: sem ela, dava pra apontar a foto pro arquivo de outra pessoa. `list_friends` e
+    `friend_ranking` recriadas devolvendo `avatar_path`.
+  - `supabase/tests/foto.test.ts` (7 testes): pasta alheia recusada, ninguém apaga a foto do
+    outro, visitante não envia, caminho de outra pessoa ou link qualquer recusado, amigos e
+    ranking devolvem a foto.
+- [x] 2. Supabase local: esquema `storage` no stub e imitação da API de arquivos — 2026-11-18.
+  - `supabase/tests/supabase-stub.sql`: `storage.buckets`, `storage.objects` (com RLS ligada) e
+    `storage.foldername`, iguais aos do Supabase, pra a migration rodar fora dele.
+  - `scripts/local-supabase.mjs`: rotas `/storage/v1/object` (enviar, apagar, ler público). O
+    registro do arquivo entra em `storage.objects` como o usuário da requisição, então as regras
+    valem de verdade; o conteúdo fica em `local_meta.files`. O corpo das requisições passou a ser
+    lido como bytes (a foto não é JSON).
+- [x] 3. Conta do corte (função pura, testada) e a telinha de arrastar e dar zoom — 2026-11-18.
+  - `src/features/account/avatarCrop.ts`: com zoom 1 a foto cobre a janela pelo lado menor; o
+    arraste é preso pra nunca sobrar canto vazio; o zoom é em volta do cursor (ou do meio dos
+    dois dedos); `sourceRect` devolve o quadrado da foto original que está dentro da janela.
+    8 testes em `avatarCrop.test.ts`.
+  - `AvatarCropper.tsx`: a janela tem o formato da pedrinha do avatar (o papel cobre o resto).
+    Arrastar com mouse ou dedo, zoom pela roda, pela barrinha ou com pinça; setas e +/- no
+    teclado. Ao salvar, redesenha o pedaço num canvas de 256 px (reduzindo pela metade várias
+    vezes, pra não serrilhar) e gera WebP (JPEG se o navegador não souber WebP). Redesenhar
+    apaga o EXIF da foto, inclusive a localização GPS.
+- [x] 4. Ficha: trocar foto, enviar, apagar a antiga, voltar pro raminho — 2026-11-18.
+  - `AvatarPicker.tsx` (seção "Foto" da Ficha) e `setAvatar` / `clearAvatar` / `avatarUrl`
+    no `api.ts`. O arquivo novo tem nome aleatório (`<id>/<uuid>.webp`), é enviado como bytes
+    crus, o perfil passa a apontar pra ele e só então o antigo é apagado.
+- [x] 5. `Avatar` mostra a foto em todos os lugares onde aparece — 2026-11-18.
+  - `Avatar.tsx` ganhou `photo`: com foto, a imagem preenche a pedrinha; sem foto, ou se ela não
+    carregar, o raminho. `FriendsScreen` passa a foto no ranking, nos pedidos e nos amigos.
+- [x] 6. Conferir com prints no app local; tipos, lint, testes e build — 2026-11-18.
+  - Cenário `foto` em `e2e/output/_scenarios.mjs`: escolhe uma imagem, arrasta, dá zoom pela
+    roda, salva (WebP de ~7,6 KB, 256×256), vê a foto no ranking, troca de novo (a antiga é
+    apagada do Storage) e volta pro raminho (nenhum arquivo sobra).
+  - Bug achado e corrigido: em desenvolvimento o React desfaz e refaz o efeito que abre a foto;
+    a imagem da rodada desfeita falhava (link já revogado) e fechava a telinha com "não deu pra
+    abrir". Agora o erro de uma rodada desfeita é ignorado.
+  - **Pra produção**: a migration precisa rodar no Supabase da nuvem (`supabase db push` ou
+    colar o SQL no editor) antes do deploy do front; sem a coluna `avatar_path`, a Ficha e o
+    ranking quebram.
+
+### Ficha: cabeçalho com foto e nome que cabe inteiro (2026-11-18)
+
+Pedido: a Ficha estava "meio zoada" e nome comprido aparecia cortado. Causa: o @ tinha tamanho
+fixo (até 72 px) com `overflow-wrap: anywhere`, então "@nandinhaaamordoedu.flor" quebrava no
+meio da palavra ("nandinhaaamordoe / du.flor"). A foto era uma seção solta, separada do nome.
+
+- [x] 1. Cabeçalho da ficha: foto à esquerda, @ ao lado, data e e-mail embaixo — 2026-11-18.
+  - `AvatarPicker.tsx`: a pedrinha com a foto é o próprio botão de trocar (um "+" verde no
+    canto); "voltar pro raminho" embaixo, só quando tem foto. A seção "Foto" saiu.
+  - `AccountScreen.tsx`: data e e-mail foram pro cabeçalho, ao lado da foto.
+- [x] 2. Nome que cabe inteiro — 2026-11-18.
+  - `AccountScreen.module.css`: a coluna do nome é um container (`container-type: inline-size`)
+    e o tamanho do @ é `largura ÷ (letras × 0,52)`, entre 24 e 64 px (`--chars` vem do
+    componente). Se nem no mínimo couber, `breakable()` põe `<wbr>` depois de `.` e `_`: quebra
+    ali, nunca no meio de uma palavra.
+  - No celular a foto fica em cima e o nome usa a largura toda. Cuidado registrado no CSS: uma
+    coluna com `container-type` que encolhe até o conteúdo fica sem largura, e o nome caía pro
+    mínimo.
+  - Conferido (cenário `ficha`): nome de 24 caracteres numa linha só em 1366×657, 1093×520 e
+    390×844; "@edu" em 64 px.

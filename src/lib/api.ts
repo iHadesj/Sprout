@@ -189,6 +189,40 @@ export async function updateProfile(userId: string, patch: TablesUpdate<'profile
   return unwrap(await supabase.from('profiles').update(patch).eq('id', userId).select().single())
 }
 
+// ---------- foto de perfil (bucket público "avatars" no Storage) ----------
+
+const AVATARS = 'avatars'
+
+/** Link público da foto (o caminho vem de profiles.avatar_path). */
+export function avatarUrl(path: string): string {
+  return supabase.storage.from(AVATARS).getPublicUrl(path).data.publicUrl
+}
+
+/**
+ * Envia a foto já cortada e reduzida e passa o perfil a usá-la. A foto antiga é apagada depois
+ * (se falhar, sobra só um arquivo solto: o perfil já aponta pra nova). O nome é aleatório: com
+ * o bucket público, é ele que impede alguém de adivinhar o link.
+ */
+export async function setAvatar(userId: string, photo: Blob, previous: string | null): Promise<Profile> {
+  const ext = photo.type === 'image/webp' ? 'webp' : photo.type === 'image/png' ? 'png' : 'jpg'
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`
+  // os bytes crus (e não o Blob): assim o envio não vira formulário multipart
+  const { error } = await supabase.storage
+    .from(AVATARS)
+    .upload(path, await photo.arrayBuffer(), { contentType: photo.type, cacheControl: '31536000', upsert: false })
+  if (error) throw new ApiError(error.message)
+  const profile = await updateProfile(userId, { avatar_path: path })
+  if (previous) await supabase.storage.from(AVATARS).remove([previous])
+  return profile
+}
+
+/** Volta pro raminho desenhado: tira a foto do perfil e apaga o arquivo. */
+export async function clearAvatar(userId: string, previous: string | null): Promise<Profile> {
+  const profile = await updateProfile(userId, { avatar_path: null })
+  if (previous) await supabase.storage.from(AVATARS).remove([previous])
+  return profile
+}
+
 // ---------- amigos (tudo por funções do servidor, que conferem a amizade) ----------
 
 export async function listFriends(): Promise<FriendEntry[]> {

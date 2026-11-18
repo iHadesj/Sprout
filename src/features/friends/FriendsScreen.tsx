@@ -89,7 +89,7 @@ export function FriendsScreen() {
             const content = (
               <>
                 <span className={`mono ${styles.position}`}>{i + 1}</span>
-                <Avatar name={row.username} seed={row.user_id} size={i === 0 ? 52 : 42} me={row.is_me} />
+                <Avatar name={row.username} seed={row.user_id} photo={row.avatar_path} size={i === 0 ? 52 : 42} me={row.is_me} />
                 <span className={styles.who}>
                   {at(row.username)}
                   {row.is_me && <span className={styles.me}>você</span>}
@@ -132,7 +132,7 @@ export function FriendsScreen() {
           <motion.ul className={styles.people} variants={stagger(0.07)}>
             {incoming.map((f, i) => (
               <motion.li key={f.user_id} className={styles.person} variants={popIn} data-i={i % 3}>
-                <Avatar name={f.username} seed={f.user_id} size={64} />
+                <Avatar name={f.username} seed={f.user_id} photo={f.avatar_path} size={64} />
                 <span className={styles.name}>{at(f.username)}</span>
                 <span className={styles.personActions}>
                   <Button size="sm" busy={respond.isPending} onClick={() => respond.mutate({ userId: f.user_id, accept: true })}>
@@ -157,7 +157,7 @@ export function FriendsScreen() {
                 {/* o avatar também abre o jardim (fora do Tab: o link de texto embaixo é o mesmo) */}
                 <motion.span whileHover={hoverTilt(i)} className={styles.avatarLink}>
                   <Link to={`/amigos/${f.user_id}`} tabIndex={-1} aria-hidden="true">
-                    <Avatar name={f.username} seed={f.user_id} size={76} />
+                    <Avatar name={f.username} seed={f.user_id} photo={f.avatar_path} size={76} />
                   </Link>
                 </motion.span>
                 <span className={styles.name}>{at(f.username)}</span>

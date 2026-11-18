@@ -1,7 +1,7 @@
-// Ficha (conta): o @ grande, os registros soltos (e-mail, desde quando), o perfil (nome de
-// usuário, que é como os amigos te acham, e fuso, que define o "hoje" do limite diário) e,
-// discreto no fim, sair.
-import { useState, type FormEvent } from 'react'
+// Ficha (conta): no topo, a foto (que é o botão de trocar) e o @ grande, com a data e o e-mail
+// embaixo; depois o perfil (nome de usuário, que é como os amigos te acham, e fuso, que define o
+// "hoje" do limite diário) e, discreto no fim, sair.
+import { Fragment, useState, type CSSProperties, type FormEvent } from 'react'
 import { motion } from 'motion/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogoutIcon } from '../../components/icons/logout'
@@ -12,6 +12,7 @@ import { supabase } from '../../lib/supabase'
 import { toast } from '../../lib/toast'
 import { useFocusStore } from '../../stores/focusStore'
 import { useAuth } from '../auth/authContext'
+import { AvatarPicker } from './AvatarPicker'
 import { profileKey, useProfile } from './queries'
 import { normalizeUsername, USERNAME_HINT, usernameError } from './username'
 import styles from './AccountScreen.module.css'
@@ -23,24 +24,29 @@ export function AccountScreen() {
   const userId = user?.id ?? ''
   const profile = useProfile()
 
+  const handle = profile.data?.username ? `@${profile.data.username}` : 'Sua ficha'
+
   return (
     <motion.div className={styles.page} variants={stagger(0.08)} initial="hidden" animate="show">
       <motion.header className={styles.header} variants={fadeUp}>
-        <h1>{profile.data?.username ? `@${profile.data.username}` : 'Sua ficha'}</h1>
-      </motion.header>
-
-      <motion.dl className={styles.records} variants={fadeUp}>
-        <div>
-          <dt>E-mail</dt>
-          <dd>{user?.email}</dd>
+        {profile.data ? <AvatarPicker profile={profile.data} /> : <span className={styles.photoSlot} />}
+        <div className={styles.identity}>
+          {/* o tamanho acompanha o comprimento do nome (--chars): nome comprido cabe inteiro */}
+          <h1 style={{ '--chars': Math.max(handle.length, 9) } as CSSProperties}>{breakable(handle)}</h1>
+          <dl className={styles.records}>
+            {profile.data && (
+              <div>
+                <dt>no caderno desde</dt>
+                <dd>{new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(profile.data.created_at))}</dd>
+              </div>
+            )}
+            <div>
+              <dt>e-mail</dt>
+              <dd>{user?.email}</dd>
+            </div>
+          </dl>
         </div>
-        {profile.data && (
-          <div>
-            <dt>No caderno desde</dt>
-            <dd>{new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(profile.data.created_at))}</dd>
-          </div>
-        )}
-      </motion.dl>
+      </motion.header>
 
       {profile.data && (
         <ProfileForm key={profile.data.id} userId={userId} username={profile.data.username} timezone={profile.data.timezone} />
@@ -60,6 +66,19 @@ export function AccountScreen() {
       </motion.div>
     </motion.div>
   )
+}
+
+/**
+ * Se o nome não couber nem no menor tamanho, ele quebra depois de um ponto ou de um _
+ * (<wbr> = "pode quebrar aqui"), não no meio de uma palavra.
+ */
+function breakable(text: string) {
+  return text.split(/(?<=[._])/).map((part, i) => (
+    <Fragment key={i}>
+      {i > 0 && <wbr />}
+      {part}
+    </Fragment>
+  ))
 }
 
 function ProfileForm(props: { userId: string; username: string | null; timezone: string }) {
