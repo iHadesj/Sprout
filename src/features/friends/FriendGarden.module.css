@@ -73,7 +73,7 @@
 .stageWrap {
   position: relative;
   width: min(100%, 820px);
-  height: clamp(300px, 46vh, 480px);
+  height: clamp(240px, 46vh, 480px);
   margin: 0;
 }
 
@@ -89,9 +89,11 @@
 .stage {
   position: absolute;
   inset: 0;
-  /* a borda do canvas some num esfumado: a ilha nunca aparece cortada numa linha reta */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
+  /* a borda do canvas some num esfumado nos quatro lados: a ilha nunca aparece cortada numa linha reta */
+  -webkit-mask-image: var(--scene-fade-y), var(--scene-fade-x);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--scene-fade-y), var(--scene-fade-x);
+  mask-composite: intersect;
 }
 
 .gifts {

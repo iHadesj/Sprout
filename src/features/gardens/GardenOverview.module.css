@@ -1,7 +1,7 @@
 .sheet {
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: clamp(14px, 3.4vh, 26px);
 }
 
 /* desktop: cada linha recua pela curva da ilha (--indent vem do componente) */
@@ -74,24 +74,25 @@
   flex-wrap: nowrap;
 }
 
+/* as pedrinhas acompanham a altura da tela (notebook): em tela alta ficam no tamanho cheio */
 .cluster > :nth-child(1) {
-  --size: 156px !important;
+  --size: clamp(112px, 22vh, 156px) !important;
 }
 
 .cluster > :nth-child(2) {
-  --size: 112px !important;
+  --size: clamp(84px, 16vh, 112px) !important;
   margin-left: -14px;
   translate: 0 -30px;
 }
 
 .cluster > :nth-child(3) {
-  --size: 88px !important;
+  --size: clamp(68px, 12.5vh, 88px) !important;
   margin-left: -16px;
   translate: 0 34px;
 }
 
 .cluster > :nth-child(4) {
-  --size: 96px !important;
+  --size: clamp(72px, 13.5vh, 96px) !important;
   margin-left: -12px;
   translate: 0 -10px;
 }

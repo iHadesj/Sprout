@@ -98,6 +98,21 @@
   min-width: 0;
 }
 
+/* notebook (tela baixa): cabeçalho mais fino, sobra altura pra ilha */
+@media (min-width: 760px) and (max-height: 760px) {
+  .shell {
+    --header-h: 56px;
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+
+  .link {
+    font-size: 16px;
+  }
+}
+
 /* celular: a navegação vira uma cápsula fixa no rodapé, com ícone e rótulo */
 @media (max-width: 759px) {
   .shell {

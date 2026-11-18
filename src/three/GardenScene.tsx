@@ -25,6 +25,7 @@ import { daylightAt, hourOf, overcast, seasonalLight } from './daylight'
 import { SEASONS, seasonLook, seasonOf, type Season, type SeasonLook } from './season'
 import { useNow } from '../lib/useNow'
 import { GrowingPlant, PlantField } from './Plant'
+import { FOV, frameCamera, frameDistance } from './framing'
 import { clamp, hashString } from './random'
 import { useSceneMaterials } from './useSceneMaterials'
 import { useSpots } from './useSpots'
@@ -55,24 +56,17 @@ export interface GardenSceneProps {
   liveHearts?: number
 }
 
-const FOV = 38
 /** Até onde dá pra chegar perto enquanto o cervinho da surpresa está em cena (e logo depois). */
 const CLOSE_UP_DISTANCE = 2.2
 
 /**
- * Enquadramento geral: câmera um pouco acima da ilha (dá pra ver a terra embaixo) e longe
- * o bastante pra ilha caber inteira na largura, inclusive em tela de celular em pé.
+ * Enquadramento geral: câmera um pouco acima da ilha (dá pra ver a terra embaixo) e longe o
+ * bastante pra ilha inteira caber na largura e na altura da moldura, fora do esfumado
+ * (a conta fica no framing.ts).
  */
 function defaultCamera(radius: number, aspect: number) {
-  const halfV = ((FOV / 2) * Math.PI) / 180
-  const halfH = Math.atan(Math.tan(halfV) * aspect)
-  const fitWidth = (radius * 1.12) / Math.tan(halfH) + radius * 0.35
-  const distance = Math.max(radius * 2 + 3.4, fitWidth)
-  const elevation = 0.36
-  return {
-    position: new Vector3(0, distance * Math.sin(elevation) + 0.2, distance * Math.cos(elevation)),
-    target: new Vector3(0, -0.45, 0),
-  }
+  const { position, target } = frameCamera(radius, aspect)
+  return { position: new Vector3(position.x, position.y, position.z), target: new Vector3(target.x, target.y, target.z) }
 }
 
 export default function GardenScene({ garden, plants, focusMode = false, neglected = false, raining = false, sealLevel = 0, fallback, compact = false, gifts = null, oldTree = false, flowers, liveHearts }: GardenSceneProps) {
@@ -136,6 +130,9 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, raining, 
   const season = useMemo<SeasonLook>(() => seasonLook(biome === 'neve' ? 'inverno' : (forcedSeason() ?? seasonOf())), [biome])
   const leaves = useMemo(() => leafColors(garden.color, season), [garden.color, season])
   const growing = plants.find((p) => p.status === 'growing') ?? null
+  // a moldura muda de proporção (janela redimensionada): o limite de afastamento acompanha
+  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height))
+  const fitDistance = useMemo(() => frameDistance(radius, aspect), [radius, aspect])
   const [bursts, removeBurst] = useAdultBursts(plants, garden.color)
   const depth = islandDepth(radius)
   // a luz segue o relógio de quem está olhando; conferir de 5 em 5 min basta, a mudança é lenta
@@ -238,7 +235,9 @@ function SceneContents({ garden, plants, radius, focusMode, neglected, raining, 
         enableZoom={!compact}
         enableDamping
         minDistance={fawnPlan || closeUp ? CLOSE_UP_DISTANCE : radius + 1.5}
-        maxDistance={radius * 2.8 + 6}
+        // dá pra afastar um pouco além do enquadramento geral (antes era um número fixo, e numa
+        // moldura baixa ele puxava a câmera pra perto, cortando a ilha)
+        maxDistance={Math.max(radius * 2.8 + 6, fitDistance * 1.25)}
         minPolarAngle={0.3}
         maxPolarAngle={1.3}
         autoRotate={motion && !focusMode && !fawnPlan}

@@ -866,3 +866,42 @@ cervinho inteiro balançava de um lado pro outro, saindo do chão.
 - Testes: 38 em `fawnMotion.test.ts`. Os novos pegam os três bugs (pata de trás plantada no
   empurrão, frente pousando primeiro, altura do corpo sem tranco, perna sem frear no
   quadro-chave, cascos plantados na sacudida, sacudida da cabeça pro rabo, emenda pulo→número).
+
+### Notebook: ilha inteira, borda esfumada nos quatro lados e tamanhos pela altura da tela (2026-11-18)
+
+Pedido: em notebook a ilha aparecia cortada e tudo parecia "com zoom". Medido com prints em
+1366×657, 1536×730, 1280×600 e 1093×520 (este último é um note 1366×768 com a escala do Windows
+em 125%). Causas: a câmera só enquadrava a ilha pela largura (nunca pela altura), a moldura só
+esfumava em cima e embaixo (dos lados era corte seco), e os tamanhos (títulos, pedrinhas, palco)
+eram fixos em pixel, pensados pra tela alta: em 1093×520 o "Começar foco" saía da tela.
+
+- [x] 1. Borda esfumada nos quatro lados da moldura da ilha (início, jardim, visita) — 2026-11-18.
+  - `tokens.css`: tokens `--scene-fade-y` (o esfumado de cima e de baixo que já existia) e
+    `--scene-fade-x` (novo, 9% de cada lado). As molduras (`GardenLayout`, `FocusLauncher`,
+    `FriendGarden`) usam os dois cruzados com `mask-composite: intersect`: só fica visível o
+    que está dentro das duas faixas, então os cantos também somem. Acabou o corte seco dos lados.
+- [x] 2. Câmera enquadra a ilha pela largura e pela altura, dentro da área sem esfumado — 2026-11-18.
+  - `src/three/framing.ts` (novo, função pura): projeta na tela a beirada da grama, o lábio de
+    terra e o alto das copas, e acha por busca binária a menor distância em que tudo fica fora
+    do esfumado. Antes a distância saía só da largura; numa moldura larga e baixa as copas
+    passavam do topo e ilhas grandes encostavam nas laterais. Testes em `framing.test.ts`.
+  - O alvo da câmera também desce ou sobe até a ilha ficar no meio da faixa permitida: antes
+    sobrava céu vazio em cima, e numa moldura baixa a ilha ficava pequena.
+  - `GardenScene.tsx`: `defaultCamera` usa `frameCamera`; o `maxDistance` dos controles
+    acompanha a distância calculada (o número fixo antigo puxaria a câmera de volta pra perto).
+- [x] 3. Tamanhos pela altura da tela em notebook (títulos, palco, pedrinhas, cabeçalho) — 2026-11-18.
+  - `global.css`: `h1` e `h2` usam `min(largura, altura)` da tela no `clamp`. Em tela alta
+    nada muda; em tela baixa encolhem junto com a altura.
+  - `Layout.module.css`: com altura até 760 px, cabeçalho de 56 px (era 72) e marca/links menores.
+  - `FocusLauncher.module.css` (principal): título, o quanto ele morde a ilha, palco (mínimo
+    250 px) e as pedrinhas de hoje e da sequência acompanham a altura. As pedrinhas foram um
+    pouco pra fora (-7%), porque a ilha agora usa a largura toda.
+  - `GardenOverview.module.css` e `GardenLayout.module.css` (jardim): espaço entre os blocos,
+    respiro do painel e o cacho de pedrinhas acompanham a altura.
+  - `FriendGarden.module.css` (visita): palco com mínimo de 240 px (era 300).
+  - Resultado em 1093×520: o "Começar foco" da principal volta a caber na tela.
+- [x] 4. Conferir com prints nos tamanhos de notebook, no celular e em tela grande — 2026-11-18.
+  - Cenários `note` e `noteMede` em `e2e/output/_scenarios.mjs` (ferramenta local). O
+    `noteMede` projeta a borda da ilha e diz quanto da moldura ela ocupa. Ilha grande (39
+    árvores): antes ia de 1–6% a 94–99% da largura na página do jardim (encostando nas bordas);
+    agora fica entre 8% e 92%, fora do esfumado, em 1093×520, 1366×657, 1920×970 e 390×844.

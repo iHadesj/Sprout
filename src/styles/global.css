@@ -30,7 +30,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* três níveis só: título da página (h1), título de seção (h2) e texto */
+/* três níveis só: título da página (h1), título de seção (h2) e texto.
+   Os títulos acompanham a menor entre a largura e a altura da tela: num notebook (tela larga e
+   baixa, ainda mais com a escala do Windows) eles encolhem junto com a altura. */
 h1,
 h2,
 h3 {
@@ -42,11 +44,11 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(34px, 5vw, 56px);
+  font-size: clamp(30px, min(5vw, 7.5vh), 56px);
 }
 
 h2 {
-  font-size: clamp(22px, 2.4vw, 28px);
+  font-size: clamp(20px, min(2.4vw, 3.8vh), 28px);
   letter-spacing: -0.015em;
 }
 

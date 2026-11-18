@@ -14,14 +14,14 @@
   align-self: flex-start;
   display: grid;
   gap: 6px;
-  margin: 0 0 -72px clamp(0px, 8vw, 120px);
+  margin: 0 0 calc(-1 * clamp(40px, 10vh, 72px)) clamp(0px, 8vw, 120px);
   padding: 18px 32px 18px 18px;
   background: var(--halo-light);
   pointer-events: none;
 }
 
 .title h1 {
-  font-size: clamp(40px, 6vw, 68px);
+  font-size: clamp(36px, min(6vw, 9.5vh), 68px);
 }
 
 .meta {
@@ -36,7 +36,31 @@
 .stageWrap {
   position: relative;
   width: min(100%, 860px);
-  height: clamp(320px, 50vh, 520px);
+  height: clamp(250px, 50vh, 520px);
+}
+
+/* notebook (tela baixa): pedrinhas menores, e o título e o meta mais perto da ilha */
+@media (min-width: 760px) and (max-height: 820px) {
+  .title {
+    padding-block: 10px;
+  }
+
+  .meta {
+    font-size: 16px;
+  }
+
+  .today > div,
+  .streak > div {
+    --size: clamp(116px, 24vh, 168px);
+  }
+
+  .chips {
+    margin-top: -24px;
+  }
+
+  .actions {
+    margin-top: 10px;
+  }
 }
 
 .blob {
@@ -52,9 +76,11 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* a borda do canvas some num esfumado: a ilha nunca aparece cortada numa linha reta */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 76%, transparent 97%);
+  /* a borda do canvas some num esfumado nos quatro lados: a ilha nunca aparece cortada numa linha reta */
+  -webkit-mask-image: var(--scene-fade-y), var(--scene-fade-x);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--scene-fade-y), var(--scene-fade-x);
+  mask-composite: intersect;
 }
 
 /* pedrinhas encostadas nas bordas da ilha, em alturas diferentes */
@@ -65,14 +91,15 @@
   pointer-events: none;
 }
 
+/* um pouco pra fora da moldura: a ilha agora ocupa a largura toda (até o esfumado dos lados) */
 .today {
   top: 24%;
-  left: -2%;
+  left: -7%;
 }
 
 .streak {
   top: 52%;
-  right: -2%;
+  right: -7%;
 }
 
 /* jardins num arco logo abaixo da ilha */
